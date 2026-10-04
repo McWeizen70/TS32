@@ -109,11 +109,10 @@
     td.share, td.sd { text-align:right !important; }
     /* Messübung: Name / Std. + Min. / LAeq + s + Beitrag */
     #uebRows td.tool { grid-column:1 / -1; order:0; white-space:normal; font-size:1.05rem; }
-    #uebRows td:nth-child(4) { grid-column:span 8; order:1; }
-    #uebRows td:nth-child(5) { grid-column:span 10; order:2; }
-    #uebRows td:nth-child(2) { grid-column:span 6; order:3; }
-    #uebRows td:nth-child(3) { grid-column:span 6; order:4; }
-    #uebRows td:nth-child(6) { grid-column:span 6; order:5; }
+    #uebRows td:nth-child(3) { grid-column:span 8; order:1; }
+    #uebRows td:nth-child(4) { grid-column:span 10; order:2; }
+    #uebRows td:nth-child(2) { grid-column:span 9; order:3; }
+    #uebRows td:nth-child(5) { grid-column:span 9; order:4; }
     #uebRows .iu.min input { flex:1; width:auto; }
     /* Rechner: Name / LAeq + Std. + Min. / Beitrag + Entfernen */
     #rows td:nth-child(1) { grid-column:1 / -1; }
@@ -218,7 +217,7 @@
     </div>
     <table>
       <thead><tr>
-        <th>Tätigkeit</th><th>L<sub>Aeq</sub> in dB(A)</th><th>s in dB</th><th>Std.</th><th>Min.</th><th>Beitrag</th>
+        <th>Tätigkeit</th><th>L<sub>Aeq</sub> in dB(A)</th><th>Std.</th><th>Min.</th><th>Beitrag</th>
       </tr></thead>
       <tbody id="uebRows"></tbody>
     </table>
@@ -228,12 +227,17 @@
     </div>
     <div class="actions">
       <button id="uebSave" class="primary">Ergebnis speichern (Datei)</button>
-      <button id="uebCopy" class="primary">Ergebnis kopieren (Code)</button>
+      <button id="uebMail" class="primary">Ergebnis per Mail senden</button>
       <button id="uebReset">Zurücksetzen</button>
       <a class="btn" href="laermrechner.html" download="laermrechner.html">Rechner herunterladen</a>
     </div>
     <p class="small" id="uebExportMsg" aria-live="polite"></p>
-    <p class="small" id="iosHint" hidden><strong>iPhone/iPad:</strong> „Ergebnis speichern“ legt die Datei in der Dateien-App (Ordner „Downloads“) ab. Einfacher: <em>Ergebnis kopieren</em> und den Code in eine Mail einfügen.</p>
+    <details class="hint" id="mailFallback" hidden>
+      <summary>Mailprogramm öffnet sich nicht?</summary>
+      <p class="small">Text unten kopieren und als Mail an <strong id="mailTo"></strong> senden (Betreff: <span id="mailSubj"></span>):</p>
+      <textarea id="mailText" readonly rows="8" style="width:100%;font-size:16px"></textarea>
+    </details>
+    <p class="small" id="iosHint" hidden><strong>iPhone/iPad:</strong> „Ergebnis speichern“ legt die Datei in der Dateien-App (Ordner „Downloads“) ab. Einfacher: <em>Ergebnis per Mail senden</em>.</p>
     <p class="small" id="uebSumTime"></p>
     <details class="hint" open>
       <summary><strong>Hinweise zu Zeitpunkt und Dauer der Messungen</strong> (DIN EN ISO 9612:2025, 9.3.3)</summary>
@@ -258,7 +262,7 @@
 
   <p class="small"><strong>Beitrag:</strong> Anteil der Tätigkeit an der gesamten Lärmenergie des Tages in Prozent. Verglichen wird T<sub>m</sub> · 10<sup>0,1·L<sub>Aeq</sub></sup> jeder Tätigkeit, also Dauer und Pegel zusammen; alle Beiträge ergeben 100 %.
     Die Norm gibt den Beitrag in 9.4, Gl. (4) als L<sub>EX,8h,m</sub> = L<sub>Aeq,Tm</sub> + 10 · lg(T<sub>m</sub>/T<sub>0</sub>) in dB an. Er zeigt, welche Tätigkeit den L<sub>EX,8h</sub> am stärksten bestimmt und wo eine Lärmminderung am meisten bringt.
-    <strong>s</strong> ist die Standardabweichung der Stichproben einer Tätigkeit in dB und nur zur Information; über die Stichproben entscheidet die Spannweite (9.3.2).</p>
+     Über die Stichproben einer Tätigkeit entscheidet die Spannweite (9.3.2).</p>
   <p class="small">
     L<sub>EX,8h</sub> = 10 · lg [ (1/T<sub>0</sub>) · Σ T<sub>i</sub> · 10<sup>0,1·L<sub>i</sub></sup> ], T<sub>0</sub> = 8 h.
     Werte: unterer Auslösewert 80 dB(A) / 135 dB(C), oberer Auslösewert 85 dB(A) / 137 dB(C),
@@ -440,7 +444,6 @@ function buildUebung() {
     tr.innerHTML = `
       <td class="tool">${i + 1}. ${name}</td>
       <td class="n" data-label="LAeq"><span class="iu"><input class="lvl" type="number" step="0.1" readonly aria-label="LAeq ${name}"><span class="unit">dB(A)</span></span></td>
-      <td class="sd" data-label="s"></td>
       <td class="n" data-label="Std."><span class="iu"><input class="h" type="number" min="0" step="1" inputmode="numeric" value="${DUR_H[i]}" aria-label="Stunden ${name}"><span class="unit">h</span></span></td>
       <td class="n" data-label="Min."><span class="iu min"><input class="m" type="number" min="0" max="59" step="1" inputmode="numeric" value="0" aria-label="Minuten ${name}"><span class="unit">min</span></span></td>
       <td class="share" data-label="Beitrag"></td>`;
@@ -475,8 +478,6 @@ function calcUebung() {
     // L_Aeq der Tätigkeit: energetischer Mittelwert der Stichproben, Gl. (3)
     if (n) setCalc(lvlEl, leq(all)); else clearCalc(lvlEl);
     lvlEl.readOnly = true;
-    const sd = sdev(all);
-    tr.querySelector('.sd').textContent = isFinite(sd) ? f1(sd) : '';
 
     const msgs = [];
     const bad = s => msgs.push([s, 'bad']), muted = s => msgs.push([s, '']);
@@ -547,13 +548,26 @@ document.getElementById('uebSave').onclick = () => {
   a.download = `gruppe-${p.gruppe}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  setExportMsg(`Datei gruppe-${p.gruppe}.json gespeichert – bitte per Mail an die Seminarleitung senden.`);
+  setExportMsg(`Datei gruppe-${p.gruppe}.json gespeichert – bitte per Mail an die Seminarleitung senden (oder Button „Ergebnis per Mail senden“).`);
 };
-document.getElementById('uebCopy').onclick = async () => {
+const MAIL_TO = 'm.radtke@bghw.de';
+document.getElementById('uebMail').onclick = () => {
   const p = uebPayload(); if (!p) return;
-  const code = 'TS32-' + btoa(unescape(encodeURIComponent(JSON.stringify(p))));
-  try { await navigator.clipboard.writeText(code); setExportMsg('Code kopiert – bitte in eine Mail/Nachricht einfügen und an die Seminarleitung senden.'); }
-  catch { prompt('Code markieren, kopieren und per Mail senden:', code); }
+  const r3 = x => (x == null ? null : Math.round(x * 1000) / 1000);
+  const compact = { format: p.format, version: p.version, gruppe: p.gruppe, namen: p.namen, modus: p.modus,
+    taetigkeiten: p.taetigkeiten.map(t => ({ name: t.name, stichproben: t.stichproben, laeq: r3(t.laeq), h: t.h, min: t.min })),
+    lex: r3(p.lex) };
+  const code = 'TS32-' + btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
+  const subject = `TS32 Messübung Gruppe ${p.gruppe}`;
+  const body = `Messübung TS32 – Gruppe ${p.gruppe}\r\nNamen: ${p.namen || '-'}\r\n` +
+    `LEX,8h: ${p.lex == null ? '-' : f1(p.lex) + ' dB(A)'}\r\n\r\n` +
+    `Ergebnis-Code (bitte unverändert lassen):\r\n${code}\r\n`;
+  document.getElementById('mailTo').textContent = MAIL_TO;
+  document.getElementById('mailSubj').textContent = subject;
+  document.getElementById('mailText').value = body;
+  document.getElementById('mailFallback').hidden = false;
+  setExportMsg('Mailprogramm wird geöffnet – bitte die Mail absenden.');
+  window.location.href = `mailto:${MAIL_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 };
 
 document.getElementById('uebMode').onchange = calcUebung;
