@@ -56,7 +56,7 @@
       <label class="btn primary" for="files">Dateien auswählen</label>
       <input id="files" type="file" accept=".json,application/json" multiple>
     </div>
-    <p class="small" style="margin:12px 0 4px">… oder die per Mail erhaltenen <strong>Codes</strong> (beginnen mit <code>TS32-</code>) einfügen, mehrere nacheinander möglich:</p>
+    <p class="small" style="margin:12px 0 4px">… oder die per Mail erhaltenen <strong>Mails</strong> einfügen – ganzer Mailtext oder nur die Zeile mit <code>TS32-</code>, mehrere Mails nacheinander möglich:</p>
     <textarea id="codes" placeholder="TS32-eyJmb3JtYXQi…"></textarea>
     <div class="actions">
       <button id="addCodes" class="primary">Codes hinzufügen</button>
@@ -64,6 +64,7 @@
     </div>
     <div id="loaded" style="margin-top:10px"></div>
     <ul class="msgs" id="msgs"></ul>
+    <ul class="msgs" id="warn"></ul>
   </div>
 
   <div id="out" hidden>
@@ -87,19 +88,39 @@
 
 <script>
 const groups = new Map(); // Gruppennummer -> Ergebnisobjekt
-const f1 = x => (isFinite(x) ? x.toFixed(1).replace('.', ',') : '–');
+const f1 = x => (typeof x === 'number' && isFinite(x) ? x.toFixed(1).replace('.', ',') : '–');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const leq = v => 10 * Math.log10(v.reduce((a, l) => a + Math.pow(10, 0.1 * l), 0) / v.length);
 const sdev = v => { const n = v.length; if (n < 2) return NaN; const m = v.reduce((a, b) => a + b, 0) / n; return Math.sqrt(v.reduce((a, l) => a + (l - m) ** 2, 0) / (n - 1)); };
 const msgsEl = document.getElementById('msgs');
 const msg = (t, c) => { const li = document.createElement('li'); li.textContent = t; if (c) li.className = c; msgsEl.appendChild(li); };
 
-function valid(o) {
-  return o && o.format === 'ts32-laerm' && Number.isInteger(o.gruppe) && Array.isArray(o.taetigkeiten)
-    && o.taetigkeiten.every(t => t && typeof t.name === 'string' && Array.isArray(t.stichproben));
+// Zahl aus Datei/Code übernehmen; alles andere wird zu null
+function toNum(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  if (typeof v === 'string' && v.trim() !== '') { const x = Number(v.replace(',', '.')); return isFinite(x) ? x : null; }
+  return null;
 }
-function addResult(o, quelle) {
-  if (!valid(o)) { msg(`${quelle}: kein gültiges Ergebnis aus dem Lärmrechner.`, 'bad'); return; }
+// prüft Aufbau und bringt alle Werte in eine sichere Form (Zahlen als Zahl, Texte als Text)
+function normalize(o) {
+  if (!o || typeof o !== 'object' || o.format !== 'ts32-laerm' || !Array.isArray(o.taetigkeiten)) return null;
+  const gruppe = toNum(o.gruppe);
+  if (!Number.isInteger(gruppe) || gruppe < 1) return null;
+  const taetigkeiten = [];
+  for (const t of o.taetigkeiten) {
+    if (!t || typeof t !== 'object' || typeof t.name !== 'string') return null;
+    taetigkeiten.push({
+      name: t.name,
+      stichproben: Array.isArray(t.stichproben) ? t.stichproben.map(toNum).filter(v => v !== null) : [],
+      laeq: toNum(t.laeq), h: toNum(t.h) || 0, min: toNum(t.min) || 0
+    });
+  }
+  return { gruppe, namen: typeof o.namen === 'string' ? o.namen : '', modus: o.modus === 'gruppe' ? 'gruppe' : 'einzelperson',
+           taetigkeiten, lex: toNum(o.lex) };
+}
+function addResult(raw, quelle) {
+  const o = normalize(raw);
+  if (!o) { msg(`${quelle}: kein gültiges Ergebnis aus dem Lärmrechner.`, 'bad'); return; }
   if (groups.has(o.gruppe)) msg(`Gruppe ${o.gruppe} war schon geladen – ersetzt durch ${quelle}.`, 'warn');
   groups.set(o.gruppe, o);
 }
@@ -111,13 +132,26 @@ async function readFiles(list) {
   }
   render();
 }
+// Base64 → Text (UTF-8); wirft bei ungültigen Daten
+function b64text(b64) {
+  const bin = atob(b64);
+  return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+// Code dekodieren. Hängt Text direkt am Code (z. B. eine Signatur nach einem Zeilenumbruch),
+// wird von hinten gekürzt, bis gültiges JSON übrig bleibt.
+function decodeCode(b64) {
+  for (let len = b64.length - (b64.length % 4); len >= 8; len -= 4) {
+    try { return JSON.parse(b64text(b64.slice(0, len))); } catch { /* weiter kürzen */ }
+  }
+  throw new Error('ungültig');
+}
 function readCodes(text) {
   msgsEl.innerHTML = '';
-  // Zeilenumbrüche aus Mails entfernen, dann an "TS32-" trennen
-  const parts = text.replace(/\s+/g, '').split('TS32-').filter(Boolean);
-  if (!parts.length) msg('Kein Code gefunden.', 'bad');
-  parts.forEach((p, i) => {
-    try { addResult(JSON.parse(decodeURIComponent(escape(atob(p)))), `Code ${i + 1}`); }
+  // Zeilenumbrüche aus Mails entfernen, dann nur die Codes herausschneiden
+  const codes = [...text.replace(/\s+/g, '').matchAll(/TS32-([A-Za-z0-9+\/]+={0,2})/g)].map(m => m[1]);
+  if (!codes.length) msg('Kein Code gefunden – bitte die Zeile mit „TS32-…“ mit einfügen.', 'bad');
+  codes.forEach((c, i) => {
+    try { addResult(decodeCode(c), `Code ${i + 1}`); }
     catch { msg(`Code ${i + 1}: nicht lesbar – bitte vollständig kopieren.`, 'bad'); }
   });
   render();
@@ -146,7 +180,7 @@ function render() {
     `<span class="chip">Gruppe ${g.gruppe}${g.namen ? ' – ' + esc(g.namen) : ''}<button data-g="${g.gruppe}" title="entfernen" aria-label="Gruppe ${g.gruppe} entfernen">✕</button></span>`).join('');
   document.querySelectorAll('#loaded button').forEach(b => b.onclick = () => { groups.delete(+b.dataset.g); render(); });
   document.getElementById('out').hidden = !gs.length;
-  if (!gs.length) return;
+  if (!gs.length) { document.getElementById('warn').innerHTML = ''; return; }
 
   const names = [];
   gs.forEach(g => g.taetigkeiten.forEach(t => { if (!names.includes(t.name)) names.push(t.name); }));
@@ -194,7 +228,9 @@ function render() {
   if (new Set(gs.map(g => g.modus)).size > 1) w.push('Die Gruppen haben unterschiedliche Messmodi (Einzelperson/Gruppe) gewählt.');
   const missing = gs.filter(g => g.lex == null).map(g => g.gruppe);
   if (missing.length) w.push(`Gruppe ${missing.join(', ')}: kein L_EX,8h berechnet (Pegel oder Zeiten fehlen).`);
-  w.forEach(t => msg(t, 'warn'));
+  const warnEl = document.getElementById('warn');
+  warnEl.innerHTML = '';
+  w.forEach(t => { const li = document.createElement('li'); li.textContent = t; li.className = 'warn'; warnEl.appendChild(li); });
   window.__csv = csv;
 }
 
@@ -206,7 +242,13 @@ const drop = document.getElementById('drop');
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => readFiles([...e.dataTransfer.files]));
 document.getElementById('csv').onclick = () => {
-  const text = '﻿' + window.__csv.map(r => r.join(';')).join('\r\n');
+  // jede Zelle in Anführungszeichen; Texte, die Excel als Formel lesen würde, mit ' entschärfen
+  const cell = v => {
+    let t = String(v ?? '');
+    if (/^[=+\-@\t\r]/.test(t) && !/^-?\d+(,\d+)?$/.test(t)) t = "'" + t;
+    return '"' + t.replace(/"/g, '""') + '"';
+  };
+  const text = '\ufeff' + window.__csv.map(r => r.map(cell).join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
   a.download = 'auswertung-messuebung.csv'; document.body.appendChild(a); a.click(); a.remove();
