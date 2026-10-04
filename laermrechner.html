@@ -6,10 +6,12 @@
 <title>Tages-Lärmexpositionspegel Rechner</title>
 <style>
   :root { --bg:#f5f6f8; --card:#fff; --fg:#1d2330; --muted:#667085; --line:#d9dde5;
-          --ok:#1a7f4b; --warn:#b7791f; --bad:#c0392b; --accent:#2557d6; }
+          --ok:#1a7f4b; --warn:#b7791f; --bad:#c0392b; --accent:#2557d6;
+          --in:#d8f1de; --in-line:#7cc58e; --out:#ffe3c2; --out-line:#e9a95c; }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#14171d; --card:#1e232c; --fg:#e8ebf0; --muted:#98a2b3; --line:#343b48;
-            --ok:#4cc38a; --warn:#e6b450; --bad:#ff7b6b; --accent:#6c93ff; }
+            --ok:#4cc38a; --warn:#e6b450; --bad:#ff7b6b; --accent:#6c93ff;
+            --in:#1f4a2d; --in-line:#3f8d58; --out:#5a3a14; --out-line:#b9792b; }
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,sans-serif; }
@@ -39,6 +41,7 @@
   .peak input { width:110px; }
   .result { text-align:center; }
   .big { font-size:2.6rem; font-weight:700; line-height:1.1; }
+  .result .big { background:var(--out); border:1px solid var(--out-line); border-radius:10px; padding:8px; }
   .big small { font-size:1rem; font-weight:500; color:var(--muted); }
   .badge { display:inline-block; margin-top:8px; padding:4px 12px; border-radius:99px;
            font-weight:600; font-size:.9rem; border:1px solid currentColor; }
@@ -50,7 +53,14 @@
   tr.det .detbox label { display:flex; gap:6px; align-items:center; flex:1 1 220px; }
   tr.det .detbox label.ut { flex:0 1 190px; }
   tr.det .detbox input { width:auto; flex:1; min-width:80px; padding:5px 8px; }
-  input[readonly] { opacity:.75; }
+  input:not([readonly]):not([type=checkbox]) { background:var(--in); border-color:var(--in-line); }
+  input[readonly], td.share, td.sd { background:var(--out); border-color:var(--out-line); }
+  input[readonly] { opacity:1; }
+  td.share, td.sd { border:1px solid var(--out-line); color:var(--fg); border-radius:6px; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:.8rem; color:var(--muted); margin:10px 0 0; }
+  .legend i { display:inline-block; width:14px; height:14px; border-radius:4px; vertical-align:-2px; margin-right:6px; }
+  .legend .i-in { background:var(--in); border:1px solid var(--in-line); }
+  .legend .i-out { background:var(--out); border:1px solid var(--out-line); }
   .opt { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .opt input[type=checkbox] { width:auto; }
   .opt select, .opt input[type=number] { width:auto; padding:6px 8px; font:inherit; color:inherit;
@@ -89,7 +99,7 @@
   <div class="card">
     <table>
       <thead><tr>
-        <th>Tätigkeit</th><th>L<sub>Aeq</sub> in dB(A)</th><th>Std.</th><th>Min.</th><th></th><th></th>
+        <th>Tätigkeit</th><th>L<sub>Aeq</sub> in dB(A)</th><th>Std.</th><th>Min.</th><th>Beitrag</th><th></th>
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
@@ -146,7 +156,7 @@
     </div>
     <table>
       <thead><tr>
-        <th>Tätigkeit</th><th>L<sub>Aeq</sub> in dB(A)</th><th>s in dB</th><th>Std.</th><th>Min.</th><th></th>
+        <th>Tätigkeit</th><th>L<sub>Aeq</sub> in dB(A)</th><th>s in dB</th><th>Std.</th><th>Min.</th><th>Beitrag</th>
       </tr></thead>
       <tbody id="uebRows"></tbody>
     </table>
@@ -175,6 +185,13 @@
   </div>
 </div>
 
+  <div class="legend">
+    <span><i class="i-in"></i>grün: Eingabefeld</span>
+    <span><i class="i-out"></i>orange: berechnete Anzeige</span>
+  </div>
+  <p class="small"><strong>Beitrag:</strong> Anteil der Tätigkeit an der gesamten Lärmenergie des Tages in Prozent. Verglichen wird T<sub>m</sub> · 10<sup>0,1·L<sub>Aeq</sub></sup> jeder Tätigkeit, also Dauer und Pegel zusammen; alle Beiträge ergeben 100 %.
+    Die Norm gibt den Beitrag in 9.4, Gl. (4) als L<sub>EX,8h,m</sub> = L<sub>Aeq,Tm</sub> + 10 · lg(T<sub>m</sub>/T<sub>0</sub>) in dB an. Er zeigt, welche Tätigkeit den L<sub>EX,8h</sub> am stärksten bestimmt und wo eine Lärmminderung am meisten bringt.
+    <strong>s</strong> ist die Standardabweichung der Stichproben einer Tätigkeit in dB und nur zur Information; über die Stichproben entscheidet die Spannweite (9.3.2).</p>
   <p class="small">
     L<sub>EX,8h</sub> = 10 · lg [ (1/T<sub>0</sub>) · Σ T<sub>i</sub> · 10<sup>0,1·L<sub>i</sub></sup> ], T<sub>0</sub> = 8 h.
     Werte: unterer Auslösewert 80 dB(A) / 135 dB(C), oberer Auslösewert 85 dB(A) / 137 dB(C),
