@@ -131,9 +131,15 @@
 
 <div class="panel" id="tab-uebung" hidden>
   <div class="card">
-    <p class="small" style="margin-top:0">Messübung: Trage je Tätigkeit drei Stichproben (L<sub>Aeq</sub> in dB(A)) und die Einwirkdauer ein.
-      L<sub>Aeq</sub> der Tätigkeit ist der energetische Mittelwert der Stichproben (DIN EN ISO 9612:2025, Gl. 3).
-      Liegt die Standardabweichung der Stichproben über 3 dB, sind drei weitere Stichproben erforderlich.</p>
+    <p class="small" style="margin-top:0">Messübung nach DIN EN ISO 9612:2025, 9.3: Trage je Tätigkeit die Stichproben (L<sub>Aeq</sub> in dB(A)) und die Einwirkdauer ein.
+      L<sub>Aeq</sub> der Tätigkeit ist der energetische Mittelwert der Stichproben (Gl. 3).</p>
+    <div class="opt" style="margin-bottom:10px">
+      <label for="uebMode"><strong>Messung an:</strong></label>
+      <select id="uebMode">
+        <option value="1">einer Person – mind. 3 Stichproben, Spannweite ≤ 3 dB</option>
+        <option value="2">mehreren Personen (HEG) – mind. 5 Stichproben, Spannweite ≤ 5 dB</option>
+      </select>
+    </div>
     <table>
       <thead><tr>
         <th>Tätigkeit</th><th>L<sub>Aeq</sub> in dB(A)</th><th>s in dB</th><th>Std.</th><th>Min.</th><th></th>
@@ -323,7 +329,6 @@ calc();
 
 // ---------- Reiter Messübung ----------
 const TOOLS = ['Laubbläser', 'Excenterpresse', 'Schlagschrauber', 'Akku-Winkelschleifer', 'Netz-Winkelschleifer'];
-const SD_LIMIT = 3; // dB
 const uebRows = document.getElementById('uebRows');
 
 function buildUebung() {
@@ -341,7 +346,7 @@ function buildUebung() {
     const det = document.createElement('tr');
     det.className = 'samples';
     let labels = '';
-    for (let k = 1; k <= 6; k++) {
+    for (let k = 1; k <= 5; k++) {
       labels += `<label${k > 3 ? ' class="extra" hidden' : ''}>Stichprobe ${k} dB(A)<input class="s" type="number" step="0.1" inputmode="decimal" aria-label="Stichprobe ${k} ${name}"></label>`;
     }
     det.innerHTML = `<td colspan="6"><div class="sbox">${labels}</div><div class="smsg"></div></td>`;
@@ -358,16 +363,14 @@ function calcUebung() {
     const lvlEl = tr.querySelector('.lvl');
     const sEls = [...det.querySelectorAll('input.s')];
     const vals = sEls.map(num);
-    const first3 = vals.slice(0, 3);
-    const extra = vals.slice(3).filter(isFinite);
-    const all = vals.filter(isFinite);
+    const grp = document.getElementById('uebMode').value === '2';
+    const nmin = grp ? 5 : 3, limit = grp ? 5 : 3; // 9.3.2: Mindestanzahl Messungen, max. Spannweite (dB)
+    det.querySelectorAll('label.extra').forEach(l => { l.hidden = !grp; });
+    const used = vals.slice(0, nmin);
+    const all = used.filter(isFinite);
     const n = all.length;
-    const sd3 = first3.every(isFinite) ? sdev(first3) : NaN;
-    const trigger = sd3 > SD_LIMIT;
-    const showExtra = trigger || extra.length > 0;
-    det.querySelectorAll('label.extra').forEach(l => { l.hidden = !showExtra; });
 
-    // L_Aeq der Tätigkeit: energetischer Mittelwert aller Stichproben, Gl. (3)
+    // L_Aeq der Tätigkeit: energetischer Mittelwert der Stichproben, Gl. (3)
     if (n) setCalc(lvlEl, leq(all)); else clearCalc(lvlEl);
     lvlEl.readOnly = true;
     const sd = sdev(all);
@@ -375,19 +378,13 @@ function calcUebung() {
 
     const msgs = [];
     const bad = s => msgs.push([s, 'bad']), muted = s => msgs.push([s, '']);
-    if (n > 0 && n < 3) muted(`Noch ${3 - n} Stichprobe${3 - n > 1 ? 'n' : ''} bis zur Mindestzahl von 3 (DIN EN ISO 9612:2025, 9.3.2).`);
-    if (trigger && extra.length < 3) {
-      bad(`Standardabweichung der 3 Stichproben s = ${f1(sd3)} dB > ${SD_LIMIT} dB: 3 weitere Stichproben erforderlich (Felder 4–6).`);
-      pending.push(name);
-    } else if (trigger) {
-      if (sd > SD_LIMIT) {
-        bad(`Auch mit 6 Stichproben s = ${f1(sd)} dB > ${SD_LIMIT} dB: Tätigkeit in zwei Tätigkeiten aufteilen oder Messung mit längerer Messdauer wiederholen (DIN EN ISO 9612:2025, 9.3.2).`);
-        pending.push(name);
-      } else muted(`Mit 6 Stichproben s = ${f1(sd)} dB ≤ ${SD_LIMIT} dB – ausreichend.`);
-    } else if (isFinite(sd3)) muted(`s = ${f1(sd3)} dB ≤ ${SD_LIMIT} dB – 3 Stichproben ausreichend.`);
-    if (n >= 2) {
+    if (n > 0 && n < nmin) muted(`Noch ${nmin - n} Stichprobe${nmin - n > 1 ? 'n' : ''} bis zur Mindestzahl von ${nmin} (DIN EN ISO 9612:2025, 9.3.2).`);
+    if (n >= nmin) {
       const range = Math.max(...all) - Math.min(...all);
-      if (range > 3) muted(`Hinweis: Spannweite (Max − Min) = ${f1(range)} dB. Nach DIN EN ISO 9612:2025, 9.3.2 gilt als Kriterium die Spannweite: > 3 dB bei Messung an einer Person (> 5 dB bei einer Gruppe) → Tätigkeit aufteilen oder mit längerer Messdauer wiederholen.`);
+      if (range > limit) {
+        bad(`Spannweite (Max − Min) = ${f1(range)} dB > ${limit} dB (9.3.2): a) Tätigkeit in zwei Tätigkeiten aufteilen und für beide neu messen (mind. ${nmin} Stichproben je Tätigkeit) oder b) Messung mit längerer Messdauer wiederholen und die vorherige Messreihe verwerfen.`);
+        pending.push(name);
+      } else muted(`Spannweite = ${f1(range)} dB ≤ ${limit} dB – Stichproben ausreichend.`);
     }
     const box = det.querySelector('.smsg');
     box.innerHTML = '';
@@ -416,13 +413,14 @@ function calcUebung() {
   let cls = 'ok', text = 'Unter dem unteren Auslösewert';
   if (lex >= HIGH) { cls = 'bad'; text = 'Oberer Auslösewert erreicht/überschritten'; }
   else if (lex >= LOW) { cls = 'warn'; text = 'Unterer Auslösewert erreicht/überschritten'; }
-  if (pending.length) note(`Weitere Stichproben bzw. Aufteilung nötig bei: ${pending.join(', ')}.`);
+  if (pending.length) note(`Spannweite überschritten – Aufteilung bzw. Wiederholung nötig bei: ${pending.join(', ')}.`);
   if (totalH < T0) note(`Restliche ${(T0 - totalH).toFixed(2).replace('.', ',')} h des Arbeitstags werden als lärmfrei (Beitrag 0) gewertet.`);
   if (lex > HIGH) note('Expositionsgrenzwert 85 dB(A) ohne Gehörschutz überschritten – Gehörschutz mit ausreichender Dämmung erforderlich.');
   badge.innerHTML = `<span class="badge ${cls}"></span>`;
   badge.firstChild.textContent = text;
 }
 
+document.getElementById('uebMode').onchange = calcUebung;
 document.getElementById('uebReset').onclick = () => { buildUebung(); calcUebung(); };
 buildUebung();
 calcUebung();
