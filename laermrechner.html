@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tages-Lärmexpositionspegel Rechner</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --fg:#1d2330; --muted:#667085; --line:#d9dde5;
+          --ok:#1a7f4b; --warn:#b7791f; --bad:#c0392b; --accent:#2557d6;
+          --in:#d8f1de; --in-line:#7cc58e; --out:#ffe3c2; --out-line:#e9a95c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171d; --card:#1e232c; --fg:#e8ebf0; --muted:#98a2b3; --line:#343b48;
+            --ok:#4cc38a; --warn:#e6b450; --bad:#ff7b6b; --accent:#6c93ff;
+            --in:#1f4a2d; --in-line:#3f8d58; --out:#5a3a14; --out-line:#b9792b; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  p.sub { margin:0 0 20px; color:var(--muted); font-size:.9rem; }
+  .tabs { display:flex; gap:4px; margin:0 0 16px; border-bottom:1px solid var(--line); }
+  .tabs button { border:1px solid transparent; border-bottom:0; border-radius:8px 8px 0 0; background:none;
+                 color:var(--muted); padding:8px 16px; margin-bottom:-1px; font-weight:600; }
+  .tabs button.active { background:var(--card); border-color:var(--line); color:var(--fg); }
+  .panel[hidden] { display:none; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-size:.75rem; color:var(--muted); font-weight:600; padding:0 6px 6px; }
+  td { padding:4px 6px; }
+  input { width:100%; padding:8px; font:inherit; color:inherit; background:var(--bg);
+          border:1px solid var(--line); border-radius:6px; }
+  input:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+  td.n input { text-align:right; }
+  td.share { text-align:right; color:var(--muted); font-size:.85rem; white-space:nowrap; }
+  button { font:inherit; cursor:pointer; border-radius:6px; border:1px solid var(--line);
+           background:var(--card); color:var(--fg); padding:7px 12px; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.x { padding:6px 10px; color:var(--muted); }
+  .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .peak { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .peak input { width:110px; }
+  .result { text-align:center; }
+  .big { font-size:2.6rem; font-weight:700; line-height:1.1; }
+  .result .big { background:var(--out); border:1px solid var(--out-line); border-radius:10px; padding:8px; }
+  .big small { font-size:1rem; font-weight:500; color:var(--muted); }
+  .badge { display:inline-block; margin-top:8px; padding:4px 12px; border-radius:99px;
+           font-weight:600; font-size:.9rem; border:1px solid currentColor; }
+  .ok { color:var(--ok); } .warn { color:var(--warn); } .bad { color:var(--bad); }
+  ul.notes { margin:8px 0 0; padding-left:18px; font-size:.9rem; }
+  .small { font-size:.8rem; color:var(--muted); }
+  tr.det td { padding-top:0; padding-bottom:10px; }
+  tr.det .detbox { display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:.8rem; color:var(--muted); }
+  tr.det .detbox label { display:flex; gap:6px; align-items:center; flex:1 1 220px; }
+  tr.det .detbox label.ut { flex:0 1 190px; }
+  tr.det .detbox input { width:auto; flex:1; min-width:80px; padding:5px 8px; }
+  input:not([readonly]):not([type=checkbox]) { background:var(--in); border-color:var(--in-line); }
+  input[readonly], td.share, td.sd { background:var(--out); border-color:var(--out-line); }
+  input[readonly] { opacity:1; }
+  td.share, td.sd { border:1px solid var(--out-line); color:var(--fg); border-radius:6px; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:.8rem; color:var(--muted); margin:10px 0 0; }
+  .legend i { display:inline-block; width:14px; height:14px; border-radius:4px; vertical-align:-2px; margin-right:6px; }
+  .legend .i-in { background:var(--in); border:1px solid var(--in-line); }
+  .legend .i-out { background:var(--out); border:1px solid var(--out-line); }
+  .opt { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .opt input[type=checkbox] { width:auto; }
+  .opt select, .opt input[type=number] { width:auto; padding:6px 8px; font:inherit; color:inherit;
+          background:var(--bg); border:1px solid var(--line); border-radius:6px; }
+  #uncOpts { margin-top:12px; display:none; }
+  .unc { display:none; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); text-align:left; }
+  .unc table td { padding:2px 4px; font-size:.9rem; } .unc table td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+  .unc .hl td { font-weight:700; }
+  details.hint { margin-top:12px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
+  details.hint summary { cursor:pointer; font-size:.85rem; }
+  details.hint ul { margin:8px 0 0; padding-left:18px; }
+  details.hint li { margin-bottom:4px; }
+  #uebRows td.tool { font-weight:600; white-space:nowrap; }
+  #uebRows td.sd { text-align:right; font-size:.85rem; white-space:nowrap; }
+  #uebRows tr.samples td { padding-top:0; padding-bottom:12px; border-bottom:1px solid var(--line); }
+  .sbox { display:flex; gap:8px; flex-wrap:wrap; font-size:.8rem; color:var(--muted); }
+  .sbox label { display:flex; flex-direction:column; gap:2px; flex:1 1 90px; }
+  .sbox label[hidden] { display:none; }
+  .sbox input { padding:5px 8px; text-align:right; }
+  .smsg { margin-top:6px; font-size:.85rem; }
+  .smsg div { margin-top:2px; }
+  @media (max-width:520px) { .big { font-size:2.1rem; } th, td { padding-left:3px; padding-right:3px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Tages-Lärmexpositionspegel L<sub>EX,8h</sub></h1>
+  <p class="sub">Berechnung nach DIN EN ISO 9612:2025 / LärmVibrationsArbSchV aus Teilexpositionen.</p>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tabBtnRechner" class="active" aria-selected="true" data-tab="rechner">Rechner</button>
+    <button role="tab" id="tabBtnUebung" aria-selected="false" data-tab="uebung">Messübung</button>
+  </div>
+
+<div class="panel" id="tab-rechner">
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th>Tätigkeit</th><th>L<sub>Aeq</sub> in dB(A)</th><th>Std.</th><th>Min.</th><th>Beitrag</th><th></th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="actions">
+      <button id="add">+ Zeile</button>
+      <button id="reset">Zurücksetzen</button>
+    </div>
+    <p class="small" id="sumTime"></p>
+  </div>
+
+  <div class="card">
+    <div class="peak">
+      <label for="peak"><strong>Spitzenschalldruckpegel L<sub>pC,peak</sub></strong> (optional) in dB(C):</label>
+      <input id="peak" type="number" step="0.1" inputmode="decimal" placeholder="z. B. 130">
+    </div>
+    <div class="peak" style="margin-top:10px">
+      <label for="prot"><strong>Wirksame Dämmung Gehörschutz</strong> (optional) in dB:</label>
+      <input id="prot" type="number" step="0.1" min="0" inputmode="decimal" placeholder="z. B. 20">
+    </div>
+    <p class="small">Die Dämmung wird für den Vergleich mit dem Expositionsgrenzwert abgezogen (am Ohr wirksamer Pegel).</p>
+    <hr style="border:0;border-top:1px solid var(--line);margin:12px 0">
+    <label class="opt"><input type="checkbox" id="uncOn"> <strong>Messunsicherheit berechnen</strong> (DIN EN ISO 9612, aufgabenbezogene Messung)</label>
+    <div id="uncOpts">
+      <div class="opt">
+        <label for="cls">Messgerät:</label>
+        <select id="cls"><option value="0.7">Klasse 1 (u₂ = 0,7 dB)</option><option value="1.5">Klasse 2 (u₂ = 1,5 dB)</option></select>
+        <label for="u3">Mikrofonposition u₃ in dB:</label>
+        <input id="u3" type="number" step="0.1" min="0" value="1.0" style="width:80px">
+      </div>
+      <p class="small">Trage je Tätigkeit unter der Zeile die Einzelmessungen ein (Leerzeichen oder Semikolon getrennt, mind. 3 empfohlen).
+      L<sub>Aeq</sub> der Tätigkeit ist dann der energetische Mittelwert. Optional die Unsicherheit der Dauer u(T) in Minuten.</p>
+    </div>
+  </div>
+
+  <div class="card result" aria-live="polite">
+    <div class="big"><span id="lex">–</span> <small>dB(A)</small></div>
+    <div class="small">L<sub>EX,8h</sub> (Bezugsdauer 8 h)</div>
+    <div id="badge"></div>
+    <ul class="notes" id="notes" style="text-align:left"></ul>
+    <div class="unc" id="unc"></div>
+  </div>
+</div>
+
+<div class="panel" id="tab-uebung" hidden>
+  <div class="card">
+    <p class="small" style="margin-top:0">Messübung nach DIN EN ISO 9612:2025, 9.3: Trage je Tätigkeit die Stichproben (L<sub>Aeq</sub> in dB(A)) und die Einwirkdauer ein.
+      L<sub>Aeq</sub> der Tätigkeit ist der energetische Mittelwert der Stichproben (Gl. 3).</p>
+    <div class="opt" style="margin-bottom:10px">
+      <label for="uebMode"><strong>Messung an:</strong></label>
+      <select id="uebMode">
+        <option value="1">einer Person – mind. 3 Stichproben, Spannweite ≤ 3 dB</option>
+        <option value="2">mehreren Personen (HEG) – mind. 5 Stichproben, Spannweite ≤ 5 dB</option>
+      </select>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Tätigkeit</th><th>L<sub>Aeq</sub> in dB(A)</th><th>s in dB</th><th>Std.</th><th>Min.</th><th>Beitrag</th>
+      </tr></thead>
+      <tbody id="uebRows"></tbody>
+    </table>
+    <div class="actions">
+      <button id="uebReset">Zurücksetzen</button>
+    </div>
+    <p class="small" id="uebSumTime"></p>
+    <details class="hint" open>
+      <summary><strong>Hinweise zu Zeitpunkt und Dauer der Messungen</strong> (DIN EN ISO 9612:2025, 9.3.3)</summary>
+      <ul class="small">
+        <li>Messungen zu <strong>verschiedenen Zeitpunkten</strong> während der Tätigkeit durchführen. Die Messzeitpunkte so wählen, dass die Messreihe für den Geräuschpegel der gesamten Tätigkeit repräsentativ ist.</li>
+        <li>Eine lange Einzelmessung darf <strong>nicht</strong> in mehrere kurze Messungen aufgeteilt werden, um die Unsicherheit zu verringern – die Repräsentativität wäre nicht gesichert und die Stichprobenunsicherheit unrealistisch niedrig (C.2.3).</li>
+        <li><strong>Mindestdauer je Messung: 5 min</strong>, wenn die Aufgabe länger als 5 min dauert. Ist die Tätigkeit kürzer als 5 min, muss die Messung der Dauer der Tätigkeit entsprechen.</li>
+        <li>Die Messdauer darf verkürzt werden, wenn sich der Schalldruckpegel als <strong>stabil</strong> erweist oder der Lärm der Tätigkeit nur einen geringen Beitrag zur Gesamtbelastung liefert. Als stabil gilt der Pegel, wenn sich der äquivalente Gesamt-Schalldruckpegel bei Verlängerung der Messdauer um 30 s um nicht mehr als 0,2 dB ändert.</li>
+        <li>Mindest- und Höchstdauer der aufeinanderfolgenden Messungen derselben Tätigkeit sollen um <strong>nicht mehr als 25 %</strong> voneinander abweichen, damit der Mittelwert von L<sub>p,A,eqT<sub>m</sub></sub> korrekt ist.</li>
+        <li>Bei <strong>zyklischem</strong> Geräusch muss die Dauer jeder Messung einer ganzzahligen Anzahl (≥ 3) voller Zyklen entsprechen und darf nicht kürzer als 3 min sein.</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="card result" aria-live="polite">
+    <div class="big"><span id="uebLex">–</span> <small>dB(A)</small></div>
+    <div class="small">L<sub>EX,8h</sub> (Bezugsdauer 8 h)</div>
+    <div id="uebBadge"></div>
+    <ul class="notes" id="uebNotes" style="text-align:left"></ul>
+  </div>
+</div>
+
+  <div class="legend">
+    <span><i class="i-in"></i>grün: Eingabefeld</span>
+    <span><i class="i-out"></i>orange: berechnete Anzeige</span>
+  </div>
+  <p class="small"><strong>Beitrag:</strong> Anteil der Tätigkeit an der gesamten Lärmenergie des Tages in Prozent. Verglichen wird T<sub>m</sub> · 10<sup>0,1·L<sub>Aeq</sub></sup> jeder Tätigkeit, also Dauer und Pegel zusammen; alle Beiträge ergeben 100 %.
+    Die Norm gibt den Beitrag in 9.4, Gl. (4) als L<sub>EX,8h,m</sub> = L<sub>Aeq,Tm</sub> + 10 · lg(T<sub>m</sub>/T<sub>0</sub>) in dB an. Er zeigt, welche Tätigkeit den L<sub>EX,8h</sub> am stärksten bestimmt und wo eine Lärmminderung am meisten bringt.
+    <strong>s</strong> ist die Standardabweichung der Stichproben einer Tätigkeit in dB und nur zur Information; über die Stichproben entscheidet die Spannweite (9.3.2).</p>
+  <p class="small">
+    L<sub>EX,8h</sub> = 10 · lg [ (1/T<sub>0</sub>) · Σ T<sub>i</sub> · 10<sup>0,1·L<sub>i</sub></sup> ], T<sub>0</sub> = 8 h.
+    Werte: unterer Auslösewert 80 dB(A) / 135 dB(C), oberer Auslösewert 85 dB(A) / 137 dB(C),
+    Expositionsgrenzwert 85 dB(A) / 137 dB(C) (unter Berücksichtigung des Gehörschutzes).
+    Orientierungshilfe ohne Gewähr. Die Messunsicherheit (optional) folgt dem aufgabenbezogenen Verfahren der DIN EN ISO 9612:2025 (Anhang C) mit den dort angegebenen Standardwerten; die Ergebnisse ersetzen keine normgerechte Messung und Dokumentation.
+  </p>
+</main>
+
+<script>
+const T0 = 8; // Stunden
+const LOW = 80, HIGH = 85, PEAK_LOW = 135, PEAK_HIGH = 137;
+const rowsEl = document.getElementById('rows');
+const uncOn = document.getElementById('uncOn');
+
+// Pegelgrößen werden mit einer Nachkommastelle angezeigt, intern aber mit dem ungerundeten Wert gerechnet.
+const f1 = x => x.toFixed(1).replace('.', ',');
+
+function addRow(name = '', level = '', h = '', m = '') {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="name" type="text" placeholder="Tätigkeit" value="${name}"></td>
+    <td class="n"><input class="lvl" type="number" step="0.1" inputmode="decimal" value="${level}"></td>
+    <td class="n"><input class="h" type="number" min="0" step="1" inputmode="numeric" value="${h}"></td>
+    <td class="n"><input class="m" type="number" min="0" max="59" step="1" inputmode="numeric" value="${m}"></td>
+    <td class="share"></td>
+    <td><button class="x" title="Zeile entfernen" aria-label="Zeile entfernen">✕</button></td>`;
+  tr.className = 'main';
+  const det = document.createElement('tr');
+  det.className = 'det';
+  det.hidden = !uncOn.checked;
+  det.innerHTML = `<td colspan="6"><div class="detbox">
+    <label>Einzelmessungen dB(A): <input class="meas" type="text" inputmode="decimal" placeholder="z. B. 89,5 90,2 88,7"></label>
+    <label class="ut">u(T) in min: <input class="ut" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></label>
+  </div></td>`;
+  tr.querySelector('.x').onclick = () => { tr.remove(); det.remove(); calc(); };
+  rowsEl.append(tr, det);
+}
+
+function parseMeas(s) {
+  return s.split(/[;\s]+/).map(x => parseFloat(x.replace(',', '.'))).filter(isFinite);
+}
+
+function num(el) { const v = parseFloat(el.value.replace?.(',', '.') ?? el.value); return isFinite(v) ? v : NaN; }
+
+// schreibgeschützte (berechnete) Pegelfelder: angezeigt mit 1 Nachkommastelle, gerechnet mit exaktem Wert
+function setCalc(el, v) { el.readOnly = true; el.value = v.toFixed(1); el.dataset.exact = v; }
+function clearCalc(el) { if (el.readOnly) el.value = ''; el.readOnly = false; delete el.dataset.exact; }
+function lvlVal(el) { return el.readOnly && el.dataset.exact !== undefined ? parseFloat(el.dataset.exact) : num(el); }
+// energetischer Mittelwert nach Gleichung (3)
+function leq(vals) { return 10 * Math.log10(vals.reduce((a, l) => a + Math.pow(10, 0.1 * l), 0) / vals.length); }
+// Standardabweichung der Stichproben (Bessel, n-1)
+function sdev(vals) {
+  const n = vals.length;
+  if (n < 2) return NaN;
+  const mean = vals.reduce((a, b) => a + b, 0) / n;
+  return Math.sqrt(vals.reduce((a, l) => a + (l - mean) ** 2, 0) / (n - 1));
+}
+
+function calc() {
+  let sum = 0, totalH = 0, any = false;
+  const parts = [];
+  const on = uncOn.checked;
+  document.getElementById('uncOpts').style.display = on ? 'block' : 'none';
+  for (const tr of rowsEl.querySelectorAll('tr.main')) {
+    const det = tr.nextElementSibling;
+    det.hidden = !on;
+    const lvlEl = tr.querySelector('.lvl');
+    let meas = [];
+    if (on) meas = parseMeas(det.querySelector('.meas').value);
+    if (meas.length) setCalc(lvlEl, leq(meas)); else clearCalc(lvlEl);
+    const L = lvlVal(lvlEl);
+    const t = (num(tr.querySelector('.h')) || 0) + (num(tr.querySelector('.m')) || 0) / 60;
+    const e = isFinite(L) && t > 0 ? t * Math.pow(10, 0.1 * L) : 0;
+    const uT = on ? (num(det.querySelector('input.ut')) || 0) / 60 : 0;
+    parts.push({ tr, e, L, t, meas, uT });
+    if (e > 0) { sum += e; totalH += t; any = true; }
+  }
+  for (const { tr, e } of parts) {
+    tr.querySelector('.share').textContent = e > 0 ? (100 * e / sum).toFixed(0) + ' %' : '';
+  }
+  const lexEl = document.getElementById('lex'), badge = document.getElementById('badge'),
+        notes = document.getElementById('notes'), st = document.getElementById('sumTime');
+  const hh = Math.floor(totalH), mm = Math.round((totalH - hh) * 60);
+  st.textContent = `Gesamtdauer: ${hh} h ${mm} min` + (totalH > 24 ? ' – mehr als 24 h, bitte prüfen' : '');
+  notes.innerHTML = '';
+  const uncEl = document.getElementById('unc');
+  uncEl.style.display = 'none';
+  const note = s => { const li = document.createElement('li'); li.textContent = s; notes.appendChild(li); };
+
+  const peak = num(document.getElementById('peak'));
+  const prot = Math.max(0, num(document.getElementById('prot')) || 0);
+
+  if (!any && !isFinite(peak)) { lexEl.textContent = '–'; badge.innerHTML = ''; return; }
+
+  let cls = 'ok', text = 'Unter dem unteren Auslösewert';
+  if (any) {
+    const lex = 10 * Math.log10(sum / T0);
+    lexEl.textContent = lex.toFixed(1);
+    if (lex >= HIGH) { cls = 'bad'; text = 'Oberer Auslösewert erreicht/überschritten'; }
+    else if (lex >= LOW) { cls = 'warn'; text = 'Unterer Auslösewert erreicht/überschritten'; }
+    if (on) uncertainty(parts, lex, uncEl, note);
+    if (totalH < T0) note(`Restliche ${(T0 - totalH).toFixed(2).replace('.', ',')} h des Arbeitstags werden als lärmfrei (Beitrag 0) gewertet.`);
+    if (prot > 0) {
+      const eff = lex - prot;
+      note(`Wirksamer Pegel am Ohr mit Gehörschutz: ${eff.toFixed(1)} dB(A) – Expositionsgrenzwert 85 dB(A) ${eff > HIGH ? 'ÜBERSCHRITTEN' : 'eingehalten'}.`);
+    } else if (lex > HIGH) {
+      note('Expositionsgrenzwert 85 dB(A) ohne Gehörschutz überschritten – Gehörschutz mit ausreichender Dämmung erforderlich.');
+    }
+  } else lexEl.textContent = '–';
+
+  if (isFinite(peak)) {
+    const pe = peak - prot;
+    if (peak >= PEAK_HIGH) { if (cls !== 'bad') { cls = 'bad'; text = 'Oberer Auslösewert (Spitzenpegel) erreicht'; } }
+    else if (peak >= PEAK_LOW && cls === 'ok') { cls = 'warn'; text = 'Unterer Auslösewert (Spitzenpegel) erreicht'; }
+    note(`Spitzenpegel ${peak.toFixed(1)} dB(C)` + (prot > 0 ? `, am Ohr ${pe.toFixed(1)} dB(C)` : '') +
+         ` – Grenzwert 137 dB(C) ${pe > PEAK_HIGH ? 'ÜBERSCHRITTEN' : 'eingehalten'}.`);
+  }
+  badge.innerHTML = `<span class="badge ${cls}"></span>`;
+  badge.firstChild.textContent = text;
+}
+
+// Messunsicherheit nach DIN EN ISO 9612:2025, tätigkeitsbezogene Messung (Anhang C.2)
+function uncertainty(parts, lex, box, note) {
+  const f = (x, d = 1) => x.toFixed(d).replace('.', ',');
+  let s1 = 0, few = false;
+  for (const p of parts) {
+    if (p.e <= 0) continue;
+    const n = p.meas.length;
+    let u1a = 0;
+    if (n >= 2) u1a = sdev(p.meas) / Math.sqrt(n); // Gl. (C.6)
+    if (n < 3) few = true;
+    const c1a = (p.t / T0) * Math.pow(10, 0.1 * (p.L - lex)); // Gl. (C.4)
+    const c1b = (10 / Math.LN10) * c1a / p.t; // Gl. (C.5)
+    s1 += (c1a * u1a) ** 2 + (c1b * p.uT) ** 2;
+  }
+  const u2 = parseFloat(document.getElementById('cls').value);
+  const u3raw = num(document.getElementById('u3'));
+  const u3 = isFinite(u3raw) && u3raw >= 0 ? u3raw : 1.0;
+  const u = Math.sqrt(s1 + u2 * u2 + u3 * u3);
+  const U = 1.65 * u;
+  const up = lex + U;
+  box.style.display = 'block';
+  box.innerHTML = `<table>
+    <tr><td>u₁ (Streuung der Messungen &amp; Dauer)</td><td>${f(Math.sqrt(s1))} dB</td></tr>
+    <tr><td>u₂ (Messgerät)</td><td>${f(u2)} dB</td></tr>
+    <tr><td>u₃ (Mikrofonposition)</td><td>${f(u3)} dB</td></tr>
+    <tr><td>Standardunsicherheit u</td><td>${f(u)} dB</td></tr>
+    <tr><td>Erweiterte Unsicherheit U (k = 1,65; 95 % einseitig)</td><td>${f(U)} dB</td></tr>
+    <tr class="hl"><td>L<sub>EX,8h,95%</sub> = L<sub>EX,8h</sub> + U</td><td>${f(lex)} + ${f(U)} = ${f(up)} dB(A)</td></tr>
+  </table>`;
+  if (few) note('Für u₁ᵃ sind je Tätigkeit mindestens 3 Einzelmessungen nötig – für Zeilen mit weniger Messungen wird u₁ᵃ = 0 gesetzt, die Unsicherheit ist dann unterschätzt.');
+  note(up >= HIGH ? `Unter Berücksichtigung der Unsicherheit (L + U = ${f(up)} dB(A)) wird der obere Auslösewert 85 dB(A) erreicht/überschritten.`
+      : up >= LOW ? `Unter Berücksichtigung der Unsicherheit (L + U = ${f(up)} dB(A)) wird der untere Auslösewert 80 dB(A) erreicht/überschritten.`
+      : `Auch mit Unsicherheit (L + U = ${f(up)} dB(A)) bleibt der Pegel unter dem unteren Auslösewert.`);
+}
+
+document.getElementById('add').onclick = () => { addRow(); };
+document.getElementById('reset').onclick = () => {
+  rowsEl.innerHTML = ''; addRow(); addRow(); addRow();
+  document.getElementById('peak').value = ''; document.getElementById('prot').value = ''; calc();
+};
+
+addRow('Maschinenbetrieb', 90, 4, 0);
+addRow('Handwerkzeug', 95, 1, 0);
+addRow('Pause / Büro', 65, 3, 0);
+calc();
+
+// ---------- Reiter Messübung ----------
+const TOOLS = ['Laubbläser', 'Excenterpresse', 'Schlagschrauber', 'Akku-Winkelschleifer', 'Netz-Winkelschleifer'];
+const uebRows = document.getElementById('uebRows');
+
+function buildUebung() {
+  uebRows.innerHTML = '';
+  TOOLS.forEach((name, i) => {
+    const tr = document.createElement('tr');
+    tr.className = 'main';
+    tr.innerHTML = `
+      <td class="tool">${i + 1}. ${name}</td>
+      <td class="n"><input class="lvl" type="number" step="0.1" readonly aria-label="LAeq ${name}"></td>
+      <td class="sd"></td>
+      <td class="n"><input class="h" type="number" min="0" step="1" inputmode="numeric" aria-label="Stunden ${name}"></td>
+      <td class="n"><input class="m" type="number" min="0" max="59" step="1" inputmode="numeric" aria-label="Minuten ${name}"></td>
+      <td class="share"></td>`;
+    const det = document.createElement('tr');
+    det.className = 'samples';
+    let labels = '';
+    for (let k = 1; k <= 5; k++) {
+      labels += `<label${k > 3 ? ' class="extra" hidden' : ''}>Stichprobe ${k} dB(A)<input class="s" type="number" step="0.1" inputmode="decimal" aria-label="Stichprobe ${k} ${name}"></label>`;
+    }
+    det.innerHTML = `<td colspan="6"><div class="sbox">${labels}</div><div class="smsg"></div></td>`;
+    uebRows.append(tr, det);
+  });
+}
+
+function calcUebung() {
+  let sum = 0, totalH = 0, any = false;
+  const parts = [], pending = [];
+  for (const tr of uebRows.querySelectorAll('tr.main')) {
+    const det = tr.nextElementSibling;
+    const name = tr.querySelector('.tool').textContent;
+    const lvlEl = tr.querySelector('.lvl');
+    const sEls = [...det.querySelectorAll('input.s')];
+    const vals = sEls.map(num);
+    const grp = document.getElementById('uebMode').value === '2';
+    const nmin = grp ? 5 : 3, limit = grp ? 5 : 3; // 9.3.2: Mindestanzahl Messungen, max. Spannweite (dB)
+    det.querySelectorAll('label.extra').forEach(l => { l.hidden = !grp; });
+    const used = vals.slice(0, nmin);
+    const all = used.filter(isFinite);
+    const n = all.length;
+
+    // L_Aeq der Tätigkeit: energetischer Mittelwert der Stichproben, Gl. (3)
+    if (n) setCalc(lvlEl, leq(all)); else clearCalc(lvlEl);
+    lvlEl.readOnly = true;
+    const sd = sdev(all);
+    tr.querySelector('.sd').textContent = isFinite(sd) ? f1(sd) : '';
+
+    const msgs = [];
+    const bad = s => msgs.push([s, 'bad']), muted = s => msgs.push([s, '']);
+    if (n > 0 && n < nmin) muted(`Noch ${nmin - n} Stichprobe${nmin - n > 1 ? 'n' : ''} bis zur Mindestzahl von ${nmin} (DIN EN ISO 9612:2025, 9.3.2).`);
+    if (n >= nmin) {
+      const range = Math.max(...all) - Math.min(...all);
+      if (range > limit) {
+        bad(`Spannweite (Max − Min) = ${f1(range)} dB > ${limit} dB (9.3.2): a) Tätigkeit in zwei Tätigkeiten aufteilen und für beide neu messen (mind. ${nmin} Stichproben je Tätigkeit) oder b) Messung mit längerer Messdauer wiederholen und die vorherige Messreihe verwerfen.`);
+        pending.push(name);
+      } else muted(`Spannweite = ${f1(range)} dB ≤ ${limit} dB – Stichproben ausreichend.`);
+    }
+    const box = det.querySelector('.smsg');
+    box.innerHTML = '';
+    for (const [s, c] of msgs) { const d = document.createElement('div'); d.textContent = s; d.className = c || 'small'; box.appendChild(d); }
+
+    const L = lvlVal(lvlEl);
+    const t = (num(tr.querySelector('.h')) || 0) + (num(tr.querySelector('.m')) || 0) / 60;
+    const e = isFinite(L) && t > 0 ? t * Math.pow(10, 0.1 * L) : 0;
+    parts.push({ tr, e });
+    if (e > 0) { sum += e; totalH += t; any = true; }
+  }
+  for (const { tr, e } of parts) {
+    tr.querySelector('.share').textContent = e > 0 ? (100 * e / sum).toFixed(0) + ' %' : '';
+  }
+  const lexEl = document.getElementById('uebLex'), badge = document.getElementById('uebBadge'),
+        notes = document.getElementById('uebNotes'), st = document.getElementById('uebSumTime');
+  const hh = Math.floor(totalH), mm = Math.round((totalH - hh) * 60);
+  st.textContent = `Gesamtdauer: ${hh} h ${mm} min` + (totalH > 24 ? ' – mehr als 24 h, bitte prüfen' : '');
+  notes.innerHTML = '';
+  const note = s => { const li = document.createElement('li'); li.textContent = s; notes.appendChild(li); };
+  if (!any) { lexEl.textContent = '–'; badge.innerHTML = ''; return; }
+
+  // Gl. (5): L_EX,8h = 10 lg [ Σ (T_m / T_0) · 10^(0,1·L_p,A,eqTm) ]
+  const lex = 10 * Math.log10(sum / T0);
+  lexEl.textContent = lex.toFixed(1);
+  let cls = 'ok', text = 'Unter dem unteren Auslösewert';
+  if (lex >= HIGH) { cls = 'bad'; text = 'Oberer Auslösewert erreicht/überschritten'; }
+  else if (lex >= LOW) { cls = 'warn'; text = 'Unterer Auslösewert erreicht/überschritten'; }
+  if (pending.length) note(`Spannweite überschritten – Aufteilung bzw. Wiederholung nötig bei: ${pending.join(', ')}.`);
+  if (totalH < T0) note(`Restliche ${(T0 - totalH).toFixed(2).replace('.', ',')} h des Arbeitstags werden als lärmfrei (Beitrag 0) gewertet.`);
+  if (lex > HIGH) note('Expositionsgrenzwert 85 dB(A) ohne Gehörschutz überschritten – Gehörschutz mit ausreichender Dämmung erforderlich.');
+  badge.innerHTML = `<span class="badge ${cls}"></span>`;
+  badge.firstChild.textContent = text;
+}
+
+document.getElementById('uebMode').onchange = calcUebung;
+document.getElementById('uebReset').onclick = () => { buildUebung(); calcUebung(); };
+buildUebung();
+calcUebung();
+
+// Reiter umschalten
+for (const b of document.querySelectorAll('.tabs button')) {
+  b.onclick = () => {
+    for (const o of document.querySelectorAll('.tabs button')) {
+      const act = o === b;
+      o.classList.toggle('active', act);
+      o.setAttribute('aria-selected', act);
+      document.getElementById('tab-' + o.dataset.tab).hidden = !act;
+    }
+  };
+}
+
+document.addEventListener('input', () => { calc(); calcUebung(); });
+// Eingabefelder für Pegel auf eine Nachkommastelle runden, sobald das Feld verlassen wird
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.matches('input[type=number][step="0.1"]:not([readonly])')) {
+    const v = num(el);
+    if (isFinite(v)) el.value = v.toFixed(1);
+  } else if (el.matches('input.meas')) {
+    el.value = parseMeas(el.value).map(f1).join(' ');
+  }
+  calc(); calcUebung();
+});
+</script>
+</body>
+</html>
