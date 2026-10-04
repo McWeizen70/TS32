@@ -59,6 +59,10 @@
   .unc { display:none; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); text-align:left; }
   .unc table td { padding:2px 4px; font-size:.9rem; } .unc table td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
   .unc .hl td { font-weight:700; }
+  details.hint { margin-top:12px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
+  details.hint summary { cursor:pointer; font-size:.85rem; }
+  details.hint ul { margin:8px 0 0; padding-left:18px; }
+  details.hint li { margin-bottom:4px; }
   #uebRows td.tool { font-weight:600; white-space:nowrap; }
   #uebRows td.sd { text-align:right; font-size:.85rem; white-space:nowrap; }
   #uebRows tr.samples td { padding-top:0; padding-bottom:12px; border-bottom:1px solid var(--line); }
@@ -150,6 +154,17 @@
       <button id="uebReset">Zurücksetzen</button>
     </div>
     <p class="small" id="uebSumTime"></p>
+    <details class="hint" open>
+      <summary><strong>Hinweise zu Zeitpunkt und Dauer der Messungen</strong> (DIN EN ISO 9612:2025, 9.3.3)</summary>
+      <ul class="small">
+        <li>Messungen zu <strong>verschiedenen Zeitpunkten</strong> während der Tätigkeit durchführen. Die Messzeitpunkte so wählen, dass die Messreihe für den Geräuschpegel der gesamten Tätigkeit repräsentativ ist.</li>
+        <li>Eine lange Einzelmessung darf <strong>nicht</strong> in mehrere kurze Messungen aufgeteilt werden, um die Unsicherheit zu verringern – die Repräsentativität wäre nicht gesichert und die Stichprobenunsicherheit unrealistisch niedrig (C.2.3).</li>
+        <li><strong>Mindestdauer je Messung: 5 min</strong>, wenn die Aufgabe länger als 5 min dauert. Ist die Tätigkeit kürzer als 5 min, muss die Messung der Dauer der Tätigkeit entsprechen.</li>
+        <li>Die Messdauer darf verkürzt werden, wenn sich der Schalldruckpegel als <strong>stabil</strong> erweist oder der Lärm der Tätigkeit nur einen geringen Beitrag zur Gesamtbelastung liefert. Als stabil gilt der Pegel, wenn sich der äquivalente Gesamt-Schalldruckpegel bei Verlängerung der Messdauer um 30 s um nicht mehr als 0,2 dB ändert.</li>
+        <li>Mindest- und Höchstdauer der aufeinanderfolgenden Messungen derselben Tätigkeit sollen um <strong>nicht mehr als 25 %</strong> voneinander abweichen, damit der Mittelwert von L<sub>p,A,eqT<sub>m</sub></sub> korrekt ist.</li>
+        <li>Bei <strong>zyklischem</strong> Geräusch muss die Dauer jeder Messung einer ganzzahligen Anzahl (≥ 3) voller Zyklen entsprechen und darf nicht kürzer als 3 min sein.</li>
+      </ul>
+    </details>
   </div>
 
   <div class="card result" aria-live="polite">
