@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auswertung Messübung</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --fg:#1d2330; --muted:#667085; --line:#d9dde5;
+          --ok:#1a7f4b; --warn:#b7791f; --bad:#c0392b; --accent:#2557d6;
+          --in:#d8f1de; --in-line:#7cc58e; --out:#ffe3c2; --out-line:#e9a95c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171d; --card:#1e232c; --fg:#e8ebf0; --muted:#98a2b3; --line:#343b48;
+            --ok:#4cc38a; --warn:#e6b450; --bad:#ff7b6b; --accent:#6c93ff;
+            --in:#1f4a2d; --in-line:#3f8d58; --out:#5a3a14; --out-line:#b9792b; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,sans-serif; }
+  main { max-width:960px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  h2 { font-size:1.05rem; margin:0 0 10px; }
+  p.sub { margin:0 0 20px; color:var(--muted); font-size:.9rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th { text-align:right; font-size:.75rem; color:var(--muted); font-weight:600; padding:0 6px 6px; white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  td { padding:4px 6px; text-align:right; }
+  td.v { background:var(--out); border:1px solid var(--out-line); }
+  td.st { font-weight:700; }
+  td.min, td.max { font-weight:700; }
+  button, label.btn { font:inherit; cursor:pointer; border-radius:6px; border:1px solid var(--line);
+           background:var(--card); color:var(--fg); padding:7px 12px; display:inline-block; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  textarea { width:100%; min-height:90px; padding:8px; font:inherit; font-size:.8rem; color:inherit;
+             background:var(--in); border:1px solid var(--in-line); border-radius:6px; }
+  .drop { border:2px dashed var(--in-line); background:var(--in); border-radius:10px; padding:20px; text-align:center; }
+  .drop.over { outline:3px solid var(--accent); }
+  .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center; }
+  .small { font-size:.8rem; color:var(--muted); }
+  .bad { color:var(--bad); } .ok { color:var(--ok); } .warn { color:var(--warn); }
+  .chip { display:inline-flex; gap:6px; align-items:center; border:1px solid var(--line); border-radius:99px; padding:2px 10px; margin:2px 6px 2px 0; font-size:.85rem; }
+  .chip button { border:0; padding:0 4px; background:none; color:var(--muted); }
+  ul.msgs { margin:8px 0 0; padding-left:18px; font-size:.85rem; }
+  input[type=file] { display:none; }
+  .samp { font-size:.8rem; color:var(--muted); display:block; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Auswertung Messübung</h1>
+  <p class="sub">Vergleich der Gruppenergebnisse: L<sub>Aeq</sub> je Tätigkeit und L<sub>EX,8h</sub> mit Spannweite.</p>
+
+  <div class="card">
+    <h2>Ergebnisse laden</h2>
+    <div class="drop" id="drop">
+      <p style="margin:0 0 8px">Ergebnisdateien <strong>gruppe-N.json</strong> hierher ziehen oder auswählen</p>
+      <label class="btn primary" for="files">Dateien auswählen</label>
+      <input id="files" type="file" accept=".json,application/json" multiple>
+    </div>
+    <p class="small" style="margin:12px 0 4px">… oder die per Mail erhaltenen <strong>Codes</strong> (beginnen mit <code>TS32-</code>) einfügen, mehrere nacheinander möglich:</p>
+    <textarea id="codes" placeholder="TS32-eyJmb3JtYXQi…"></textarea>
+    <div class="actions">
+      <button id="addCodes" class="primary">Codes hinzufügen</button>
+      <button id="clear">Alle entfernen</button>
+    </div>
+    <div id="loaded" style="margin-top:10px"></div>
+    <ul class="msgs" id="msgs"></ul>
+  </div>
+
+  <div id="out" hidden>
+    <div class="card">
+      <h2>L<sub>Aeq</sub> je Tätigkeit in dB(A) – Vergleich der Gruppen</h2>
+      <table id="tLaeq"></table>
+    </div>
+    <div class="card">
+      <h2>L<sub>EX,8h</sub> in dB(A) – Vergleich der Gruppen</h2>
+      <table id="tLex"></table>
+    </div>
+    <div class="card">
+      <h2>Stichproben je Tätigkeit und Gruppe</h2>
+      <p class="small" style="margin-top:0">Einzelwerte in dB(A) mit Spannweite der Stichproben innerhalb der Gruppe (Kriterium nach 9.3.2: ≤ 3 dB bei Einzelperson, ≤ 5 dB bei Gruppe).</p>
+      <table id="tSamp"></table>
+    </div>
+    <div class="actions"><button id="csv">Übersicht als CSV speichern</button></div>
+    <p class="small">Min/Max fett; Spannweite = Max − Min der Gruppenwerte; Ø = energetischer Mittelwert (10·lg des Mittelwerts der 10<sup>0,1·L</sup>); s = Standardabweichung der Gruppenwerte (n − 1). Alle Pegel mit einer Nachkommastelle.</p>
+  </div>
+</main>
+
+<script>
+const groups = new Map(); // Gruppennummer -> Ergebnisobjekt
+const f1 = x => (isFinite(x) ? x.toFixed(1).replace('.', ',') : '–');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const leq = v => 10 * Math.log10(v.reduce((a, l) => a + Math.pow(10, 0.1 * l), 0) / v.length);
+const sdev = v => { const n = v.length; if (n < 2) return NaN; const m = v.reduce((a, b) => a + b, 0) / n; return Math.sqrt(v.reduce((a, l) => a + (l - m) ** 2, 0) / (n - 1)); };
+const msgsEl = document.getElementById('msgs');
+const msg = (t, c) => { const li = document.createElement('li'); li.textContent = t; if (c) li.className = c; msgsEl.appendChild(li); };
+
+function valid(o) {
+  return o && o.format === 'ts32-laerm' && Number.isInteger(o.gruppe) && Array.isArray(o.taetigkeiten)
+    && o.taetigkeiten.every(t => t && typeof t.name === 'string' && Array.isArray(t.stichproben));
+}
+function addResult(o, quelle) {
+  if (!valid(o)) { msg(`${quelle}: kein gültiges Ergebnis aus dem Lärmrechner.`, 'bad'); return; }
+  if (groups.has(o.gruppe)) msg(`Gruppe ${o.gruppe} war schon geladen – ersetzt durch ${quelle}.`, 'warn');
+  groups.set(o.gruppe, o);
+}
+async function readFiles(list) {
+  msgsEl.innerHTML = '';
+  for (const file of list) {
+    try { addResult(JSON.parse(await file.text()), file.name); }
+    catch { msg(`${file.name}: Datei konnte nicht gelesen werden.`, 'bad'); }
+  }
+  render();
+}
+function readCodes(text) {
+  msgsEl.innerHTML = '';
+  // Zeilenumbrüche aus Mails entfernen, dann an "TS32-" trennen
+  const parts = text.replace(/\s+/g, '').split('TS32-').filter(Boolean);
+  if (!parts.length) msg('Kein Code gefunden.', 'bad');
+  parts.forEach((p, i) => {
+    try { addResult(JSON.parse(decodeURIComponent(escape(atob(p)))), `Code ${i + 1}`); }
+    catch { msg(`Code ${i + 1}: nicht lesbar – bitte vollständig kopieren.`, 'bad'); }
+  });
+  render();
+}
+
+function stats(vals) {
+  const v = vals.filter(isFinite);
+  if (!v.length) return null;
+  const mn = Math.min(...v), mx = Math.max(...v);
+  return { mn, mx, range: mx - mn, mean: leq(v), sd: sdev(v), n: v.length };
+}
+function statCells(st) {
+  return st ? `<td class="v">${f1(st.mn)}</td><td class="v">${f1(st.mx)}</td><td class="v st">${st.n > 1 ? f1(st.range) : '–'}</td><td class="v">${f1(st.mean)}</td><td class="v">${st.n > 1 ? f1(st.sd) : '–'}</td>`
+            : '<td colspan="5"></td>';
+}
+function valCells(vals, st) {
+  return vals.map(v => {
+    const cls = st && st.n > 1 && v === st.mn ? ' min' : st && st.n > 1 && v === st.mx ? ' max' : '';
+    return `<td class="v${cls}">${f1(v)}</td>`;
+  }).join('');
+}
+
+function render() {
+  const gs = [...groups.values()].sort((a, b) => a.gruppe - b.gruppe);
+  document.getElementById('loaded').innerHTML = gs.map(g =>
+    `<span class="chip">Gruppe ${g.gruppe}${g.namen ? ' – ' + esc(g.namen) : ''}<button data-g="${g.gruppe}" title="entfernen" aria-label="Gruppe ${g.gruppe} entfernen">✕</button></span>`).join('');
+  document.querySelectorAll('#loaded button').forEach(b => b.onclick = () => { groups.delete(+b.dataset.g); render(); });
+  document.getElementById('out').hidden = !gs.length;
+  if (!gs.length) return;
+
+  const names = [];
+  gs.forEach(g => g.taetigkeiten.forEach(t => { if (!names.includes(t.name)) names.push(t.name); }));
+  const get = (g, n) => g.taetigkeiten.find(t => t.name === n);
+  const head = `${gs.map(g => `<th>Gr. ${g.gruppe}</th>`).join('')}<th>Min</th><th>Max</th><th>Spannweite</th><th>Ø</th><th>s</th>`;
+
+  // Tabelle 1: L_Aeq je Tätigkeit
+  let h1 = `<thead><tr><th>Tätigkeit</th>${head}</tr></thead><tbody>`;
+  const csv = [['Tätigkeit', ...gs.map(g => 'Gruppe ' + g.gruppe), 'Min', 'Max', 'Spannweite', 'Mittel (energetisch)', 's']];
+  for (const n of names) {
+    const vals = gs.map(g => get(g, n)?.laeq).map(v => (v == null ? NaN : v));
+    const st = stats(vals);
+    h1 += `<tr><td>${esc(n)}</td>${valCells(vals, st)}${statCells(st)}</tr>`;
+    csv.push([n, ...vals.map(f1), ...(st ? [f1(st.mn), f1(st.mx), st.n > 1 ? f1(st.range) : '', f1(st.mean), st.n > 1 ? f1(st.sd) : ''] : [])]);
+  }
+  document.getElementById('tLaeq').innerHTML = h1 + '</tbody>';
+
+  // Tabelle 2: L_EX,8h
+  const lv = gs.map(g => (g.lex == null ? NaN : g.lex));
+  const ls = stats(lv);
+  document.getElementById('tLex').innerHTML = `<thead><tr><th></th>${head}</tr></thead><tbody><tr><td>L<sub>EX,8h</sub></td>${valCells(lv, ls)}${statCells(ls)}</tr></tbody>`;
+  csv.push([], ['LEX,8h', ...lv.map(f1), ...(ls ? [f1(ls.mn), f1(ls.mx), ls.n > 1 ? f1(ls.range) : '', f1(ls.mean), ls.n > 1 ? f1(ls.sd) : ''] : [])]);
+
+  // Tabelle 3: Stichproben je Gruppe
+  let h3 = `<thead><tr><th>Tätigkeit</th>${gs.map(g => `<th>Gr. ${g.gruppe}</th>`).join('')}</tr></thead><tbody>`;
+  for (const n of names) {
+    h3 += `<tr><td>${esc(n)}</td>`;
+    for (const g of gs) {
+      const t = get(g, n), v = t ? t.stichproben : [];
+      const lim = g.modus === 'gruppe' ? 5 : 3;
+      const r = v.length > 1 ? Math.max(...v) - Math.min(...v) : NaN;
+      const bad = isFinite(r) && r > lim;
+      h3 += `<td class="v">${v.map(f1).join(' · ') || '–'}<span class="samp ${bad ? 'bad' : ''}">${isFinite(r) ? 'Spannweite ' + f1(r) + ' dB' + (bad ? ' > ' + lim : '') : ''}</span></td>`;
+    }
+    h3 += '</tr>';
+  }
+  document.getElementById('tSamp').innerHTML = h3 + '</tbody>';
+
+  // Hinweise zur Vergleichbarkeit
+  const w = [];
+  for (const n of names) {
+    const d = new Set(gs.map(g => { const t = get(g, n); return t ? Math.round((t.h * 60 + t.min)) : null; }));
+    if (d.size > 1) w.push(`Einwirkdauer bei „${n}“ weicht zwischen den Gruppen ab – L_EX,8h nur eingeschränkt vergleichbar.`);
+  }
+  if (new Set(gs.map(g => g.modus)).size > 1) w.push('Die Gruppen haben unterschiedliche Messmodi (Einzelperson/Gruppe) gewählt.');
+  const missing = gs.filter(g => g.lex == null).map(g => g.gruppe);
+  if (missing.length) w.push(`Gruppe ${missing.join(', ')}: kein L_EX,8h berechnet (Pegel oder Zeiten fehlen).`);
+  w.forEach(t => msg(t, 'warn'));
+  window.__csv = csv;
+}
+
+document.getElementById('files').onchange = e => { readFiles([...e.target.files]); e.target.value = ''; };
+document.getElementById('addCodes').onclick = () => { readCodes(document.getElementById('codes').value); document.getElementById('codes').value = ''; };
+document.getElementById('clear').onclick = () => { groups.clear(); msgsEl.innerHTML = ''; render(); };
+const drop = document.getElementById('drop');
+['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => readFiles([...e.dataTransfer.files]));
+document.getElementById('csv').onclick = () => {
+  const text = '﻿' + window.__csv.map(r => r.join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'auswertung-messuebung.csv'; document.body.appendChild(a); a.click(); a.remove();
+};
+render();
+</script>
+</body>
+</html>
