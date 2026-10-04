@@ -2,7 +2,10 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lärmrechner">
+<meta name="theme-color" content="#2557d6">
 <title>Tages-Lärmexpositionspegel Rechner</title>
 <style>
   :root { --bg:#f5f6f8; --card:#fff; --fg:#1d2330; --muted:#667085; --line:#d9dde5;
@@ -83,7 +86,55 @@
   .sbox input { padding:5px 8px; text-align:right; }
   .smsg { margin-top:6px; font-size:.85rem; }
   .smsg div { margin-top:2px; }
-  @media (max-width:520px) { .big { font-size:2.1rem; } th, td { padding-left:3px; padding-right:3px; } }
+  .iu { display:flex; align-items:center; gap:5px; }
+  .iu input { flex:1; min-width:0; }
+  .unit { font-size:.8rem; color:var(--muted); white-space:nowrap; }
+  #uebRows .iu.min input { flex:none; width:75px; }
+  #rows .iu.min input { flex:none; width:84px; }
+  .sbox label .iu { margin-top:2px; }
+  input, select, textarea { font-size:16px; }
+  body { -webkit-text-size-adjust:100%; }
+  main { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); padding-bottom:max(48px, env(safe-area-inset-bottom)); }
+  @media (max-width:600px) {
+    main { padding-top:16px; }
+    .tabs button { flex:1; padding:12px 8px; }
+    button, a.btn, select { min-height:44px; }
+    #tab-rechner thead, #tab-uebung thead { display:none; }
+    #tab-rechner table, #tab-rechner tbody, #tab-uebung table, #tab-uebung tbody,
+    tr.det, tr.det td, tr.samples, tr.samples td { display:block; }
+    #rows tr.main, #uebRows tr.main { display:grid; grid-template-columns:repeat(18, 1fr); gap:6px 8px; padding:12px 0 4px; border-top:1px solid var(--line); }
+    #rows tr.main td, #uebRows tr.main td { padding:0; text-align:left; min-width:0; }
+    #rows tr.main td[data-label]::before, #uebRows tr.main td[data-label]::before { content:attr(data-label); display:block; font-size:.7rem; color:var(--muted); }
+    td.share, td.sd { padding:4px 8px !important; min-height:44px; }
+    td.share, td.sd { text-align:right !important; }
+    /* Messübung: Name / Std. + Min. / LAeq + s + Beitrag */
+    #uebRows td.tool { grid-column:1 / -1; order:0; white-space:normal; font-size:1.05rem; }
+    #uebRows td:nth-child(4) { grid-column:span 8; order:1; }
+    #uebRows td:nth-child(5) { grid-column:span 10; order:2; }
+    #uebRows td:nth-child(2) { grid-column:span 6; order:3; }
+    #uebRows td:nth-child(3) { grid-column:span 6; order:4; }
+    #uebRows td:nth-child(6) { grid-column:span 6; order:5; }
+    #uebRows .iu.min input { flex:1; width:auto; }
+    /* Rechner: Name / LAeq + Std. + Min. / Beitrag + Entfernen */
+    #rows td:nth-child(1) { grid-column:1 / -1; }
+    #rows td:nth-child(2) { grid-column:span 9; }
+    #rows td:nth-child(3) { grid-column:span 4; }
+    #rows td:nth-child(4) { grid-column:span 5; }
+    #rows td:nth-child(5) { grid-column:span 12; }
+    #rows td:nth-child(6) { grid-column:span 6; }
+    #rows .iu.min input { flex:1; width:auto; }
+    #uebRows tr.samples td { padding:2px 0 14px; }
+    .sbox label { flex:1 1 40%; }
+    .actions button, .actions a.btn { flex:1 1 45%; text-align:center; }
+    .peak input, .peak .iu { width:auto; }
+    .legend { margin-top:12px; }
+    .opt select, #uebNamen, #uebMode { width:100%; max-width:100%; flex:1 1 100%; }
+    .card { padding:12px; }
+    tr.det[hidden] { display:none; }
+    tr.det .detbox label, tr.det .detbox label.ut { flex:1 1 100%; }
+    tr.det .detbox input { min-width:0; width:100%; }
+  }
+  @media (max-width:520px) { .big { font-size:2.1rem; } }
 </style>
 </head>
 <body>
@@ -104,6 +155,10 @@
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
+    <div class="legend">
+      <span><i class="i-in"></i>grün: Eingabefeld</span>
+      <span><i class="i-out"></i>orange: berechnete Anzeige</span>
+    </div>
     <div class="actions">
       <button id="add">+ Zeile</button>
       <button id="reset">Zurücksetzen</button>
@@ -113,12 +168,12 @@
 
   <div class="card">
     <div class="peak">
-      <label for="peak"><strong>Spitzenschalldruckpegel L<sub>pC,peak</sub></strong> (optional) in dB(C):</label>
-      <input id="peak" type="number" step="0.1" inputmode="decimal" placeholder="z. B. 130">
+      <label for="peak"><strong>Spitzenschalldruckpegel L<sub>pC,peak</sub></strong> (optional):</label>
+      <span class="iu"><input id="peak" type="number" step="0.1" inputmode="decimal" placeholder="z. B. 130"><span class="unit">dB(C)</span></span>
     </div>
     <div class="peak" style="margin-top:10px">
-      <label for="prot"><strong>Wirksame Dämmung Gehörschutz</strong> (optional) in dB:</label>
-      <input id="prot" type="number" step="0.1" min="0" inputmode="decimal" placeholder="z. B. 20">
+      <label for="prot"><strong>Wirksame Dämmung Gehörschutz</strong> (optional):</label>
+      <span class="iu"><input id="prot" type="number" step="0.1" min="0" inputmode="decimal" placeholder="z. B. 20"><span class="unit">dB</span></span>
     </div>
     <p class="small">Die Dämmung wird für den Vergleich mit dem Expositionsgrenzwert abgezogen (am Ohr wirksamer Pegel).</p>
     <hr style="border:0;border-top:1px solid var(--line);margin:12px 0">
@@ -127,8 +182,8 @@
       <div class="opt">
         <label for="cls">Messgerät:</label>
         <select id="cls"><option value="0.7">Klasse 1 (u₂ = 0,7 dB)</option><option value="1.5">Klasse 2 (u₂ = 1,5 dB)</option></select>
-        <label for="u3">Mikrofonposition u₃ in dB:</label>
-        <input id="u3" type="number" step="0.1" min="0" value="1.0" style="width:80px">
+        <label for="u3">Mikrofonposition u₃:</label>
+        <span class="iu"><input id="u3" type="number" step="0.1" min="0" value="1.0" style="width:80px"><span class="unit">dB</span></span>
       </div>
       <p class="small">Trage je Tätigkeit unter der Zeile die Einzelmessungen ein (Leerzeichen oder Semikolon getrennt, mind. 3 empfohlen).
       L<sub>Aeq</sub> der Tätigkeit ist dann der energetische Mittelwert. Optional die Unsicherheit der Dauer u(T) in Minuten.</p>
@@ -167,6 +222,10 @@
       </tr></thead>
       <tbody id="uebRows"></tbody>
     </table>
+    <div class="legend">
+      <span><i class="i-in"></i>grün: Eingabefeld</span>
+      <span><i class="i-out"></i>orange: berechnete Anzeige</span>
+    </div>
     <div class="actions">
       <button id="uebSave" class="primary">Ergebnis speichern (Datei)</button>
       <button id="uebCopy" class="primary">Ergebnis kopieren (Code)</button>
@@ -174,6 +233,7 @@
       <a class="btn" href="laermrechner.html" download="laermrechner.html">Rechner herunterladen</a>
     </div>
     <p class="small" id="uebExportMsg" aria-live="polite"></p>
+    <p class="small" id="iosHint" hidden><strong>iPhone/iPad:</strong> „Ergebnis speichern“ legt die Datei in der Dateien-App (Ordner „Downloads“) ab. Einfacher: <em>Ergebnis kopieren</em> und den Code in eine Mail einfügen.</p>
     <p class="small" id="uebSumTime"></p>
     <details class="hint" open>
       <summary><strong>Hinweise zu Zeitpunkt und Dauer der Messungen</strong> (DIN EN ISO 9612:2025, 9.3.3)</summary>
@@ -196,10 +256,6 @@
   </div>
 </div>
 
-  <div class="legend">
-    <span><i class="i-in"></i>grün: Eingabefeld</span>
-    <span><i class="i-out"></i>orange: berechnete Anzeige</span>
-  </div>
   <p class="small"><strong>Beitrag:</strong> Anteil der Tätigkeit an der gesamten Lärmenergie des Tages in Prozent. Verglichen wird T<sub>m</sub> · 10<sup>0,1·L<sub>Aeq</sub></sup> jeder Tätigkeit, also Dauer und Pegel zusammen; alle Beiträge ergeben 100 %.
     Die Norm gibt den Beitrag in 9.4, Gl. (4) als L<sub>EX,8h,m</sub> = L<sub>Aeq,Tm</sub> + 10 · lg(T<sub>m</sub>/T<sub>0</sub>) in dB an. Er zeigt, welche Tätigkeit den L<sub>EX,8h</sub> am stärksten bestimmt und wo eine Lärmminderung am meisten bringt.
     <strong>s</strong> ist die Standardabweichung der Stichproben einer Tätigkeit in dB und nur zur Information; über die Stichproben entscheidet die Spannweite (9.3.2).</p>
@@ -224,18 +280,18 @@ function addRow(name = '', level = '', h = '', m = '') {
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td><input class="name" type="text" placeholder="Tätigkeit" value="${name}"></td>
-    <td class="n"><input class="lvl" type="number" step="0.1" inputmode="decimal" value="${level}"></td>
-    <td class="n"><input class="h" type="number" min="0" step="1" inputmode="numeric" value="${h}"></td>
-    <td class="n"><input class="m" type="number" min="0" max="59" step="1" inputmode="numeric" value="${m}"></td>
-    <td class="share"></td>
+    <td class="n" data-label="LAeq"><span class="iu"><input class="lvl" type="number" step="0.1" inputmode="decimal" value="${level}"><span class="unit">dB(A)</span></span></td>
+    <td class="n" data-label="Std."><span class="iu"><input class="h" type="number" min="0" step="1" inputmode="numeric" value="${h}"><span class="unit">h</span></span></td>
+    <td class="n" data-label="Min."><span class="iu min"><input class="m" type="number" min="0" max="59" step="1" inputmode="numeric" value="${m}"><span class="unit">min</span></span></td>
+    <td class="share" data-label="Beitrag"></td>
     <td><button class="x" title="Zeile entfernen" aria-label="Zeile entfernen">✕</button></td>`;
   tr.className = 'main';
   const det = document.createElement('tr');
   det.className = 'det';
   det.hidden = !uncOn.checked;
   det.innerHTML = `<td colspan="6"><div class="detbox">
-    <label>Einzelmessungen dB(A): <input class="meas" type="text" inputmode="decimal" placeholder="z. B. 89,5 90,2 88,7"></label>
-    <label class="ut">u(T) in min: <input class="ut" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></label>
+    <label>Einzelmessungen: <input class="meas" type="text" inputmode="decimal" placeholder="z. B. 89,5 90,2 88,7"><span class="unit">dB(A)</span></label>
+    <label class="ut">u(T): <input class="ut" type="number" min="0" step="1" inputmode="numeric" placeholder="0"><span class="unit">min</span></label>
   </div></td>`;
   tr.querySelector('.x').onclick = () => { tr.remove(); det.remove(); calc(); };
   rowsEl.append(tr, det);
@@ -383,16 +439,16 @@ function buildUebung() {
     tr.className = 'main';
     tr.innerHTML = `
       <td class="tool">${i + 1}. ${name}</td>
-      <td class="n"><input class="lvl" type="number" step="0.1" readonly aria-label="LAeq ${name}"></td>
-      <td class="sd"></td>
-      <td class="n"><input class="h" type="number" min="0" step="1" inputmode="numeric" value="${DUR_H[i]}" aria-label="Stunden ${name}"></td>
-      <td class="n"><input class="m" type="number" min="0" max="59" step="1" inputmode="numeric" value="0" aria-label="Minuten ${name}"></td>
-      <td class="share"></td>`;
+      <td class="n" data-label="LAeq"><span class="iu"><input class="lvl" type="number" step="0.1" readonly aria-label="LAeq ${name}"><span class="unit">dB(A)</span></span></td>
+      <td class="sd" data-label="s"></td>
+      <td class="n" data-label="Std."><span class="iu"><input class="h" type="number" min="0" step="1" inputmode="numeric" value="${DUR_H[i]}" aria-label="Stunden ${name}"><span class="unit">h</span></span></td>
+      <td class="n" data-label="Min."><span class="iu min"><input class="m" type="number" min="0" max="59" step="1" inputmode="numeric" value="0" aria-label="Minuten ${name}"><span class="unit">min</span></span></td>
+      <td class="share" data-label="Beitrag"></td>`;
     const det = document.createElement('tr');
     det.className = 'samples';
     let labels = '';
     for (let k = 1; k <= 5; k++) {
-      labels += `<label${k > 3 ? ' class="extra" hidden' : ''}>Stichprobe ${k} dB(A)<input class="s" type="number" step="0.1" inputmode="decimal" aria-label="Stichprobe ${k} ${name}"></label>`;
+      labels += `<label${k > 3 ? ' class="extra" hidden' : ''}>Stichprobe ${k}<span class="iu"><input class="s" type="number" step="0.1" inputmode="decimal" aria-label="Stichprobe ${k} ${name}"><span class="unit">dB(A)</span></span></label>`;
     }
     det.innerHTML = `<td colspan="6"><div class="sbox">${labels}</div><div class="smsg"></div></td>`;
     uebRows.append(tr, det);
@@ -501,6 +557,7 @@ document.getElementById('uebCopy').onclick = async () => {
 };
 
 document.getElementById('uebMode').onchange = calcUebung;
+if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) document.getElementById('iosHint').hidden = false;
 document.getElementById('uebReset').onclick = () => { buildUebung(); calcUebung(); };
 buildUebung();
 calcUebung();
