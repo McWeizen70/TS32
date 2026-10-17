@@ -38,8 +38,9 @@ export default {
     const branch = env.BRANCH || 'main';
     const dir = env.TARGET_DIR || 'eingang';
     const day = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }); // JJJJ-MM-TT
+    const time = new Date().toLocaleTimeString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(/:/g, ''); // HHMMSS: Dateinamen sortieren zeitlich
     const rnd = Array.from(crypto.getRandomValues(new Uint8Array(4)), b => b.toString(16).padStart(2, '0')).join('');
-    const path = `${dir}/${day}/gruppe-${data.gruppe}-${rnd}.json`;
+    const path = `${dir}/${day}/gruppe-${data.gruppe}-${time}-${rnd}.json`;
 
     const body = JSON.stringify(data, null, 1) + '\n';
     const content = btoa(Array.from(new TextEncoder().encode(body), b => String.fromCharCode(b)).join(''));

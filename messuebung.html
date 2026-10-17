@@ -39,7 +39,11 @@
   td.n input, .sbox input { text-align:right; font-variant-numeric:tabular-nums; }
   button, a.btn { font:inherit; cursor:pointer; border-radius:6px; border:1px solid var(--line);
            background:var(--card); color:var(--fg); padding:7px 12px; text-decoration:none; display:inline-block; }
+  [hidden] { display:none !important; }
   button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  /* Direktversand verfügbar: „Ergebnis direkt senden“ hervorheben, übrige Schaltflächen zurücknehmen */
+  body.direct #uebSend { padding:10px 20px; font-weight:600; box-shadow:0 1px 4px rgba(37,87,214,.35); }
+  body.direct .actions button:not(.primary), body.direct .actions a.btn { background:transparent; color:var(--muted); font-size:.9rem; }
   .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
   .opt { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
   .opt select { padding:6px 8px; background:var(--bg); border:1px solid var(--line); border-radius:6px; max-width:100%; }
@@ -360,9 +364,12 @@ async function sendDirect() {
 }
 document.getElementById('uebMail').onclick = sendMail;
 document.getElementById('uebSend').onclick = sendDirect;
-if (WORKER_URL) {
+// Direktversand nur über die Webseite: aus einer heruntergeladenen Datei (file:) blockiert der Browser die Anfrage
+if (WORKER_URL && /^https?:$/.test(location.protocol)) {
+  document.body.classList.add('direct');
   document.getElementById('uebSend').hidden = false;
   document.getElementById('uebMail').classList.remove('primary');
+  document.getElementById('iosHint').querySelector('em').textContent = 'Ergebnis direkt senden';
   document.getElementById('mbarMail').textContent = 'Senden';
   document.getElementById('mbarMail').onclick = sendDirect;
 } else {
