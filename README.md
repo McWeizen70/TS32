@@ -5,9 +5,8 @@ Begleitung des Seminars TS32 "Lärm am Arbeitsplatz"
 
 - `messuebung.html` – Messübung für die Gruppen (Stichproben, L<sub>EX,8h</sub>, Ergebnis per Mail oder als Datei). Keine Eingabe von Namen oder anderen personenbezogenen Daten.
 - `laermrechner.html` – freier Rechner für L<sub>EX,8h</sub> mit Spitzenpegel, Gehörschutz und Messunsicherheit (DIN EN ISO 9612:2025, Gl. C.3)
-- `auswertung.html` – Gruppenvergleich eines Seminars mit Tabellen, Grafiken und Präsentationsmodus für den Beamer; erzeugt die Archivdatei für die Langzeitauswertung
+- `auswertung.html` – Gruppenvergleich eines Seminars mit Tabellen, Grafiken und Präsentationsmodus für den Beamer; erzeugt die Archivdatei für die Langzeitauswertung. Einzeldatei – funktioniert auch heruntergeladen ohne Internet.
 - `langzeit.html` – Langzeitauswertung über alle archivierten Seminare (lädt die Dateien aus `ergebnisse/`)
-- `ts32-auswertung.js` – gemeinsame Funktionen von Auswertung und Langzeitauswertung (Einlesen, Statistik, Diagramme, Präsentation)
 - `ergebnisse/` – Archivdateien `seminar-JJJJ-MM-TT.json`
 - `index.html` – leitet zur Messübung weiter (Startseite unter GitHub Pages, Ziel des QR-Codes)
 - `material/` – QR-Code für https://mcweizen70.github.io/TS32/
@@ -21,3 +20,6 @@ Begleitung des Seminars TS32 "Lärm am Arbeitsplatz"
 
 ### Datenschutz
 Die Messübung fragt keine personenbezogenen Daten ab. Mails zeigen der Seminarleitung die Absenderadresse; in die Auswertung und die Archivdateien gelangen nur Gruppennummer und Messwerte. Ältere Codes, die noch Namen enthalten, werden beim Einlesen ohne Namen übernommen.
+
+### Hinweis für Änderungen
+`auswertung.html` und `langzeit.html` enthalten denselben gemeinsamen Programmteil (zwischen „Gemeinsamer Teil“ und „Ende gemeinsamer Teil“), damit jede Seite einzeln heruntergeladen werden kann. Änderungen daran in beiden Dateien vornehmen.
