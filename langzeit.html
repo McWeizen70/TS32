@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>Langzeitauswertung Messübung</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --fg:#1d2330; --muted:#667085; --line:#d9dde5;
+          --ok:#1a7f4b; --warn:#b7791f; --bad:#c0392b; --accent:#2557d6;
+          --out:#ffe3c2; --out-line:#e9a95c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171d; --card:#1e232c; --fg:#e8ebf0; --muted:#98a2b3; --line:#343b48;
+            --ok:#4cc38a; --warn:#e6b450; --bad:#ff7b6b; --accent:#6c93ff;
+            --out:#5a3a14; --out-line:#b9792b; }
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:24px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left)); }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  h2 { font-size:1.05rem; margin:0 0 10px; }
+  h3 { font-size:1rem; margin:18px 0 4px; }
+  p.sub { margin:0 0 20px; color:var(--muted); font-size:.9rem; }
+  nav.links { display:flex; gap:16px; flex-wrap:wrap; margin:0 0 16px; font-size:.9rem; }
+  nav.links a { color:var(--accent); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th { text-align:right; font-size:.75rem; color:var(--muted); font-weight:600; padding:0 6px 6px; white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  td { padding:4px 6px; text-align:right; white-space:nowrap; }
+  td.v { background:var(--out); border:1px solid var(--out-line); }
+  button, select { font:inherit; font-size:16px; cursor:pointer; border-radius:6px; border:1px solid var(--line);
+           background:var(--card); color:var(--fg); padding:7px 12px; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .actions { display:flex; gap:8px; margin:0 0 10px; flex-wrap:wrap; align-items:center; }
+  .small { font-size:.8rem; color:var(--muted); }
+  .bad { color:var(--bad); }
+  .kpis { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+  .kpi { flex:1 1 150px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px; }
+  .kpi b { display:block; font-size:1.8rem; line-height:1.2; }
+  .kpi span { font-size:.8rem; color:var(--muted); }
+  .chart-box { background:var(--c-surface); border-radius:8px; }
+  .chart-sub { font-size:.85rem; color:var(--muted); margin:0 0 4px; }
+  @media (max-width:600px) {
+    .card { padding:12px; }
+    button, select { min-height:44px; }
+    .actions > * { flex:1 1 45%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Langzeitauswertung Messübung</h1>
+  <p class="sub">Alle archivierten Seminare im Vergleich – je Seminar die Ergebnisse der Gruppen, ihre Spannweite und der energetische Mittelwert.</p>
+  <nav class="links"><a href="auswertung.html">Auswertung eines Seminars</a><a href="messuebung.html">Messübung</a></nav>
+
+  <p id="status" class="small" aria-live="polite">Seminare werden geladen …</p>
+
+  <div id="out" hidden>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card viz">
+      <h2>Grafische Übersicht</h2>
+      <div class="actions">
+        <label for="year">Zeitraum:</label>
+        <select id="year"></select>
+        <button id="present" class="primary">Präsentation starten (Vollbild für Beamer)</button>
+      </div>
+      <div id="charts"></div>
+    </div>
+
+    <div class="card">
+      <h2>L<sub>EX,8h</sub> je Seminar in dB(A)</h2>
+      <div class="scroll"><table id="tSem"></table></div>
+    </div>
+    <div class="card">
+      <h2>Alle Gruppenergebnisse im Zeitraum, je Tätigkeit</h2>
+      <div class="scroll"><table id="tAll"></table></div>
+    </div>
+    <div class="actions"><button id="csv">Alle Einzelwerte als CSV speichern</button></div>
+    <p class="small">Spannweite = Max − Min der Gruppenwerte; Ø = energetischer Mittelwert; s = Standardabweichung der Gruppenwerte (n − 1).
+      Datenquelle: Archivdateien <code>seminar-JJJJ-MM-TT.json</code> im Ordner <code>ergebnisse/</code> des Repos TS32 – ohne personenbezogene Daten.</p>
+  </div>
+</main>
+
+<script src="ts32-auswertung.js"></script>
+<script>
+const { f1, esc, stats, datumDE } = TS32;
+TS32.injectCSS();
+const LIST_URL = 'https://api.github.com/repos/McWeizen70/TS32/contents/ergebnisse?ref=main';
+let seminars = [], slides = [], csvRows = [];
+const status = (t, bad) => { const el = document.getElementById('status'); el.textContent = t; el.className = bad ? 'small bad' : 'small'; el.hidden = !t; };
+
+async function load() {
+  let list;
+  try {
+    const r = await fetch(LIST_URL, { headers: { Accept: 'application/vnd.github+json' } });
+    if (r.status === 404) list = [];
+    else if (!r.ok) throw new Error('HTTP ' + r.status);
+    else list = await r.json();
+  } catch (e) {
+    status('Die Liste der Seminare konnte nicht von GitHub geladen werden (keine Internetverbindung oder GitHub vorübergehend nicht erreichbar). Bitte später erneut versuchen.', true);
+    return;
+  }
+  const files = (Array.isArray(list) ? list : []).filter(f => f && f.type === 'file' && /^seminar-.*\.json$/i.test(f.name) && f.download_url);
+  if (!files.length) { status('Noch keine Seminare archiviert. Archivdateien entstehen in der Auswertung und werden im Ordner ergebnisse/ des Repos abgelegt.'); return; }
+  const bad = [];
+  const loaded = await Promise.all(files.map(async f => {
+    try {
+      const r = await fetch(f.download_url);
+      if (!r.ok) throw new Error();
+      const sem = TS32.normalizeSeminar(await r.json(), f.name);
+      if (!sem || !sem.gruppen.length) throw new Error();
+      return sem;
+    } catch { bad.push(f.name); return null; }
+  }));
+  // nach Datum, bei gleichem Tag nach Dateiname ohne Endung (seminar-…-17 vor seminar-…-17-2)
+  const key = sem => sem.datum + ' ' + sem.quelle.replace(/\.json$/i, '');
+  seminars = loaded.filter(Boolean).sort((a, b) => key(a).localeCompare(key(b), 'de', { numeric: true }));
+  // gleiche Tage unterscheidbar machen
+  const seen = {};
+  seminars.forEach(s => { seen[s.datum] = (seen[s.datum] || 0) + 1; s.label = datumDE(s.datum) + (seen[s.datum] > 1 ? ` (${seen[s.datum]})` : ''); });
+  status(bad.length ? `Nicht lesbar und übersprungen: ${bad.join(', ')}` : '', !!bad.length);
+  if (!seminars.length) return;
+  const years = [...new Set(seminars.map(s => s.datum.slice(0, 4)))].sort();
+  document.getElementById('year').innerHTML = '<option value="">Alle Jahre</option>' + years.map(y => `<option>${y}</option>`).join('');
+  document.getElementById('out').hidden = false;
+  render();
+}
+
+function render() {
+  const y = document.getElementById('year').value;
+  const sems = seminars.filter(s => !y || s.datum.startsWith(y));
+  const allGroups = sems.flatMap(s => s.gruppen.map(g => ({ sem: s, g })));
+  const lexAll = allGroups.map(x => x.g.lex).filter(v => v != null);
+  const lexSt = stats(lexAll);
+  document.getElementById('kpis').innerHTML = [
+    [sems.length, 'Seminare'], [allGroups.length, 'Gruppenergebnisse'],
+    [sems.length ? `${datumDE(sems[0].datum)} – ${datumDE(sems[sems.length - 1].datum)}` : '–', 'Zeitraum'],
+    [lexSt ? f1(lexSt.mean) + ' dB(A)' : '–', 'Ø LEX,8h aller Gruppen (energetisch)']
+  ].map(([v, t]) => `<div class="kpi"><b>${esc(v)}</b><span>${esc(t)}</span></div>`).join('');
+
+  // Tätigkeiten in Reihenfolge des ersten Auftretens
+  const names = [];
+  allGroups.forEach(({ g }) => g.taetigkeiten.forEach(t => { if (!names.includes(t.name)) names.push(t.name); }));
+
+  // Grafiken
+  slides = [];
+  const lexCols = sems.map(s => ({ label: s.label, values: s.gruppen.map(g => g.lex).filter(v => v != null), names: s.gruppen.filter(g => g.lex != null).map(g => `Gruppe ${g.gruppe}`) }));
+  const sumTxt = st => (st ? `${st.n} Gruppenergebnisse · Spannweite ${f1(st.range)} dB · Ø ${f1(st.mean)} dB(A) · Min ${f1(st.mn)} · Max ${f1(st.mx)}` : 'keine Werte');
+  slides.push({ title: 'LEX,8h je Seminar', sub: sumTxt(lexSt), svg: TS32.seriesChart({ cols: lexCols, title: 'LEX,8h je Seminar', withThresholds: true }), legend: TS32.legendHTML('series', true) });
+  for (const n of names) {
+    const cols = sems.map(s => {
+      const pts = s.gruppen.map(g => ({ g, t: g.taetigkeiten.find(t => t.name === n) })).filter(p => p.t && p.t.laeq != null);
+      return { label: s.label, values: pts.map(p => p.t.laeq), names: pts.map(p => `Gruppe ${p.g.gruppe}`) };
+    });
+    slides.push({ title: `${n} – LAeq je Seminar`, sub: sumTxt(stats(cols.flatMap(c => c.values))),
+                  svg: TS32.seriesChart({ cols, title: `${n}: LAeq je Seminar` }), legend: TS32.legendHTML('series', false) });
+  }
+  document.getElementById('charts').innerHTML = slides.map(s =>
+    `<h3>${TS32.subHTML(s.title)}</h3><p class="chart-sub">${esc(s.sub)}</p><div class="chart-box">${s.svg}</div>${s.legend}`).join('');
+
+  // Tabelle je Seminar
+  let h = '<thead><tr><th>Seminar</th><th>Gruppen</th><th>Min</th><th>Max</th><th>Spannweite</th><th>Ø</th><th>s</th></tr></thead><tbody>';
+  for (const s of sems) {
+    const st = stats(s.gruppen.map(g => g.lex).filter(v => v != null));
+    h += `<tr><td>${esc(s.label)}</td><td>${s.gruppen.length}</td>` + (st ? `<td class="v">${f1(st.mn)}</td><td class="v">${f1(st.mx)}</td><td class="v">${st.n > 1 ? f1(st.range) : '–'}</td><td class="v">${f1(st.mean)}</td><td class="v">${st.n > 1 ? f1(st.sd) : '–'}</td>` : '<td colspan="5"></td>') + '</tr>';
+  }
+  document.getElementById('tSem').innerHTML = h + '</tbody>';
+
+  // Tabelle über alle Gruppen im Zeitraum
+  let h2 = '<thead><tr><th>Tätigkeit</th><th>n</th><th>Min</th><th>Max</th><th>Spannweite</th><th>Ø</th><th>s</th></tr></thead><tbody>';
+  const rowAll = (label, vals) => { const st = stats(vals); return `<tr><td>${label}</td><td>${st ? st.n : 0}</td>` + (st ? `<td class="v">${f1(st.mn)}</td><td class="v">${f1(st.mx)}</td><td class="v">${st.n > 1 ? f1(st.range) : '–'}</td><td class="v">${f1(st.mean)}</td><td class="v">${st.n > 1 ? f1(st.sd) : '–'}</td>` : '<td colspan="5"></td>') + '</tr>'; };
+  for (const n of names) h2 += rowAll(esc(n) + ' (L<sub>Aeq</sub>)', allGroups.map(({ g }) => g.taetigkeiten.find(t => t.name === n)?.laeq).filter(v => v != null));
+  h2 += rowAll('<strong>L<sub>EX,8h</sub></strong>', lexAll);
+  document.getElementById('tAll').innerHTML = h2 + '</tbody>';
+
+  // CSV im Langformat (für Excel)
+  csvRows = [['Seminardatum', 'Gruppe', 'Modus', 'Tätigkeit', 'LAeq dB(A)', 'Stunden', 'Minuten', 'Stichproben', 'LEX,8h dB(A)']];
+  for (const { sem, g } of allGroups) for (const t of g.taetigkeiten)
+    csvRows.push([sem.datum, g.gruppe, g.modus, t.name, f1(t.laeq ?? NaN), t.h, t.min, t.stichproben.map(f1).join(' '), f1(g.lex ?? NaN)]);
+}
+
+document.getElementById('year').onchange = render;
+document.getElementById('present').onclick = () => TS32.present(slides);
+document.getElementById('csv').onclick = () => TS32.downloadCSV(csvRows, 'langzeitauswertung-messuebung.csv');
+load();
+</script>
+</body>
+</html>

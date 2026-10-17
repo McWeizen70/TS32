@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
 <meta name="apple-mobile-web-app-title" content="Lärmrechner">
 <meta name="theme-color" content="#2557d6">
 <title>Tages-Lärmexpositionspegel Rechner</title>
@@ -57,7 +59,7 @@
   tr.det .detbox label.ut { flex:0 1 190px; }
   tr.det .detbox input { width:auto; flex:1; min-width:80px; padding:5px 8px; }
   input:not([readonly]):not([type=checkbox]) { background:var(--in); border-color:var(--in-line); }
-  .opt input[type=number]:not([readonly]) { background:var(--in); border-color:var(--in-line); }
+  .opt input:not([readonly]):not([type=checkbox]) { background:var(--in); border-color:var(--in-line); }
   input[readonly], td.share, td.sd { background:var(--out); border-color:var(--out-line); }
   input[readonly] { opacity:1; }
   td.share, td.sd { border:1px solid var(--out-line); color:var(--fg); border-radius:6px; }
@@ -67,7 +69,7 @@
   .legend .i-out { background:var(--out); border:1px solid var(--out-line); }
   .opt { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .opt input[type=checkbox] { width:auto; }
-  .opt select, .opt input[type=number] { width:auto; padding:6px 8px; font:inherit; color:inherit;
+  .opt select, .opt input:not([type=checkbox]) { width:auto; padding:6px 8px; font:inherit; color:inherit;
           background:var(--bg); border:1px solid var(--line); border-radius:6px; }
   #uncOpts { margin-top:12px; display:none; }
   .unc { display:none; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); text-align:left; }
@@ -89,10 +91,12 @@
   #rows .iu.min input { flex:none; width:84px; }
   .sbox label .iu { margin-top:2px; }
   input, select, textarea { font-size:16px; }
-  body { -webkit-text-size-adjust:100%; }
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  body { -webkit-tap-highlight-color:transparent; }
   main { padding-left:max(16px, env(safe-area-inset-left)); padding-right:max(16px, env(safe-area-inset-right)); padding-bottom:max(48px, env(safe-area-inset-bottom)); }
   @media (max-width:600px) {
     main { padding-top:16px; }
+    button, a.btn, select, input:not([type=checkbox]) { min-height:44px; }
     .tabs a, .tabs button { flex:1; padding:12px 8px; }
     .card > table > thead { display:none; }
     .card > table, .card > table > tbody,
@@ -154,11 +158,11 @@
   <div class="card">
     <div class="peak">
       <label for="peak"><strong>Spitzenschalldruckpegel L<sub>pC,peak</sub></strong> (optional):</label>
-      <span class="iu"><input id="peak" type="number" step="0.1" inputmode="decimal" placeholder="z. B. 130"><span class="unit">dB(C)</span></span>
+      <span class="iu"><input id="peak" class="d1" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next" placeholder="z. B. 130"><span class="unit">dB(C)</span></span>
     </div>
     <div class="peak" style="margin-top:10px">
       <label for="prot"><strong>Wirksame Dämmung Gehörschutz</strong> (optional):</label>
-      <span class="iu"><input id="prot" type="number" step="0.1" min="0" inputmode="decimal" placeholder="z. B. 20"><span class="unit">dB</span></span>
+      <span class="iu"><input id="prot" class="d1" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next" placeholder="z. B. 20"><span class="unit">dB</span></span>
     </div>
     <p class="small">Die Dämmung wird für den Vergleich mit dem Expositionsgrenzwert abgezogen (am Ohr wirksamer Pegel).</p>
     <hr style="border:0;border-top:1px solid var(--line);margin:12px 0">
@@ -168,7 +172,7 @@
         <label for="cls">Messgerät:</label>
         <select id="cls"><option value="0.7">Klasse 1 (u₂ = 0,7 dB)</option><option value="1.5">Klasse 2 (u₂ = 1,5 dB)</option></select>
         <label for="u3">Mikrofonposition u₃:</label>
-        <span class="iu"><input id="u3" type="number" step="0.1" min="0" value="1.0" style="width:80px"><span class="unit">dB</span></span>
+        <span class="iu"><input id="u3" class="d1" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next" value="1,0" style="width:80px"><span class="unit">dB</span></span>
       </div>
       <p class="small">Trage je Tätigkeit unter der Zeile die Einzelmessungen ein (Leerzeichen oder Semikolon getrennt, mind. 3 empfohlen).
       L<sub>Aeq</sub> der Tätigkeit ist dann der energetische Mittelwert. Optional die Unsicherheit der Dauer u(T) in Minuten.</p>
@@ -205,10 +209,15 @@ function parseMeas(s) {
   return s.split(/[;\s]+/).map(x => parseFloat(x.replace(',', '.'))).filter(isFinite);
 }
 
-function num(el) { const v = parseFloat(el.value.replace?.(',', '.') ?? el.value); return isFinite(v) ? v : NaN; }
+// Zahl aus Textfeld lesen; Komma und Punkt sind erlaubt (Android-/iOS-Tastaturen liefern beides)
+function num(el) {
+  const t = String(el.value).trim().replace(/\s/g, '').replace(',', '.');
+  if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(t)) return NaN;
+  return parseFloat(t);
+}
 
 // schreibgeschützte (berechnete) Pegelfelder: angezeigt mit 1 Nachkommastelle, gerechnet mit exaktem Wert
-function setCalc(el, v) { el.readOnly = true; el.value = v.toFixed(1); el.dataset.exact = v; }
+function setCalc(el, v) { el.readOnly = true; el.value = f1(v); el.dataset.exact = v; }
 function clearCalc(el) { if (el.readOnly) el.value = ''; el.readOnly = false; delete el.dataset.exact; }
 function lvlVal(el) { return el.readOnly && el.dataset.exact !== undefined ? parseFloat(el.dataset.exact) : num(el); }
 // energetischer Mittelwert nach Gleichung (3)
@@ -228,9 +237,9 @@ function addRow(name = '', level = '', h = '', m = '') {
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td><input class="name" type="text" placeholder="Tätigkeit" value="${name}"></td>
-    <td class="n" data-label="LAeq"><span class="iu"><input class="lvl" type="number" step="0.1" inputmode="decimal" value="${level}"><span class="unit">dB(A)</span></span></td>
-    <td class="n" data-label="Std."><span class="iu"><input class="h" type="number" min="0" step="1" inputmode="numeric" value="${h}"><span class="unit">h</span></span></td>
-    <td class="n" data-label="Min."><span class="iu min"><input class="m" type="number" min="0" max="59" step="1" inputmode="numeric" value="${m}"><span class="unit">min</span></span></td>
+    <td class="n" data-label="LAeq"><span class="iu"><input class="lvl d1" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next" value="${level}"><span class="unit">dB(A)</span></span></td>
+    <td class="n" data-label="Std."><span class="iu"><input class="h" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" value="${h}"><span class="unit">h</span></span></td>
+    <td class="n" data-label="Min."><span class="iu min"><input class="m" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" value="${m}"><span class="unit">min</span></span></td>
     <td class="share" data-label="Beitrag"></td>
     <td><button class="x" title="Zeile entfernen" aria-label="Zeile entfernen">✕</button></td>`;
   tr.className = 'main';
@@ -239,7 +248,7 @@ function addRow(name = '', level = '', h = '', m = '') {
   det.hidden = !uncOn.checked;
   det.innerHTML = `<td colspan="6"><div class="detbox">
     <label>Einzelmessungen: <input class="meas" type="text" inputmode="decimal" placeholder="z. B. 89,5 90,2 88,7"><span class="unit">dB(A)</span></label>
-    <label class="ut">u(T): <input class="ut" type="number" min="0" step="1" inputmode="numeric" placeholder="0"><span class="unit">min</span></label>
+    <label class="ut">u(T): <input class="ut" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" placeholder="0"><span class="unit">min</span></label>
   </div></td>`;
   tr.querySelector('.x').onclick = () => { tr.remove(); det.remove(); calc(); };
   rowsEl.append(tr, det);
@@ -258,9 +267,9 @@ function calc() {
     if (on) meas = parseMeas(det.querySelector('.meas').value);
     if (meas.length) setCalc(lvlEl, leq(meas)); else clearCalc(lvlEl);
     const L = lvlVal(lvlEl);
-    const t = (num(tr.querySelector('.h')) || 0) + (num(tr.querySelector('.m')) || 0) / 60;
+    const t = Math.max(0, num(tr.querySelector('.h')) || 0) + Math.max(0, num(tr.querySelector('.m')) || 0) / 60;
     const e = isFinite(L) && t > 0 ? t * Math.pow(10, 0.1 * L) : 0;
-    const uT = on ? (num(det.querySelector('input.ut')) || 0) / 60 : 0;
+    const uT = on ? Math.max(0, num(det.querySelector('input.ut')) || 0) / 60 : 0;
     parts.push({ tr, e, L, t, meas, uT });
     if (e > 0) { sum += e; totalH += t; any = true; }
   }
@@ -284,14 +293,14 @@ function calc() {
   let cls = 'ok', text = 'Unter dem unteren Auslösewert';
   if (any) {
     const lex = 10 * Math.log10(sum / T0);
-    lexEl.textContent = lex.toFixed(1);
+    lexEl.textContent = f1(lex);
     if (lex >= HIGH) { cls = 'bad'; text = 'Oberer Auslösewert erreicht/überschritten'; }
     else if (lex >= LOW) { cls = 'warn'; text = 'Unterer Auslösewert erreicht/überschritten'; }
     if (on) uncertainty(parts, lex, uncEl, note);
     if (totalH < T0) note(`Restliche ${(T0 - totalH).toFixed(2).replace('.', ',')} h des Arbeitstags werden als lärmfrei (Beitrag 0) gewertet.`);
     if (prot > 0) {
       const eff = lex - prot;
-      note(`Wirksamer Pegel am Ohr mit Gehörschutz: ${eff.toFixed(1)} dB(A) – Expositionsgrenzwert 85 dB(A) ${eff > HIGH ? 'ÜBERSCHRITTEN' : 'eingehalten'}.`);
+      note(`Wirksamer Pegel am Ohr mit Gehörschutz: ${f1(eff)} dB(A) – Expositionsgrenzwert 85 dB(A) ${eff > HIGH ? 'ÜBERSCHRITTEN' : 'eingehalten'}.`);
     } else if (lex > HIGH) {
       note('Expositionsgrenzwert 85 dB(A) ohne Gehörschutz überschritten – Gehörschutz mit ausreichender Dämmung erforderlich.');
     }
@@ -301,7 +310,7 @@ function calc() {
     const pe = peak - prot;
     if (peak >= PEAK_HIGH) { if (cls !== 'bad') { cls = 'bad'; text = 'Oberer Auslösewert (Spitzenpegel) erreicht'; } }
     else if (peak >= PEAK_LOW && cls === 'ok') { cls = 'warn'; text = 'Unterer Auslösewert (Spitzenpegel) erreicht'; }
-    note(`Spitzenpegel ${peak.toFixed(1)} dB(C)` + (prot > 0 ? `, am Ohr ${pe.toFixed(1)} dB(C)` : '') +
+    note(`Spitzenpegel ${f1(peak)} dB(C)` + (prot > 0 ? `, am Ohr ${f1(pe)} dB(C)` : '') +
          ` – Grenzwert 137 dB(C) ${pe > PEAK_HIGH ? 'ÜBERSCHRITTEN' : 'eingehalten'}.`);
   }
   badge.innerHTML = `<span class="badge ${cls}"></span>`;
@@ -361,13 +370,21 @@ document.addEventListener('input', calc);
 // Eingabefelder für Pegel auf eine Nachkommastelle runden, sobald das Feld verlassen wird
 document.addEventListener('change', e => {
   const el = e.target;
-  if (el.matches('input[type=number][step="0.1"]:not([readonly])')) {
+  if (el.matches('input.d1:not([readonly])')) {
     const v = num(el);
-    if (isFinite(v)) el.value = v.toFixed(1);
+    if (isFinite(v)) el.value = f1(v);
   } else if (el.matches('input.meas')) {
     el.value = parseMeas(el.value).map(f1).join(' ');
   }
   calc();
+});
+// Taste „Weiter“/Enter springt zum nächsten Eingabefeld
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !e.target.matches('input:not([readonly]):not([type=checkbox])')) return;
+  e.preventDefault();
+  const list = [...document.querySelectorAll('input:not([readonly]):not([type=checkbox])')].filter(i => i.offsetParent);
+  const next = list[list.indexOf(e.target) + 1];
+  if (next) next.focus(); else e.target.blur();
 });
 </script>
 </body>
