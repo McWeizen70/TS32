@@ -193,7 +193,7 @@ const LOW = 80, HIGH = 85;
 const TOOLS = ['Laubbläser', 'Excenterpresse', 'Schlagschrauber', 'Akku-Winkelschleifer', 'Netz-Winkelschleifer'];
 const DUR_H = [1, 2, 1, 3, 1]; // vorbelegte Einwirkdauer in Stunden (Summe 8 h)
 const MAIL_TO = 'm.radtke@bghw.de';
-const WORKER_URL = ''; // Adresse des Upload-Workers (siehe worker/README.md); leer = nur Mail oder Datei
+const WORKER_URL = 'https://ts32-upload.cm-artmetall.workers.dev/'; // Adresse des Upload-Workers (siehe worker/README.md); leer = nur Mail oder Datei
 
 // Pegel werden mit einer Nachkommastelle angezeigt, intern aber mit dem ungerundeten Wert gerechnet.
 const f1 = x => x.toFixed(1).replace('.', ',');
