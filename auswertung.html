@@ -2,7 +2,8 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
 <title>Auswertung Messübung</title>
 <style>
   :root { --bg:#f5f6f8; --card:#fff; --fg:#1d2330; --muted:#667085; --line:#d9dde5;
@@ -14,23 +15,28 @@
             --in:#1f4a2d; --in-line:#3f8d58; --out:#5a3a14; --out-line:#b9792b; }
   }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,sans-serif; }
-  main { max-width:960px; margin:0 auto; padding:24px 16px 48px; }
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:24px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left)); }
   h1 { font-size:1.4rem; margin:0 0 4px; }
   h2 { font-size:1.05rem; margin:0 0 10px; }
+  h3 { font-size:1rem; margin:18px 0 4px; }
   p.sub { margin:0 0 20px; color:var(--muted); font-size:.9rem; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; overflow-x:auto; }
+  nav.links { display:flex; gap:16px; flex-wrap:wrap; margin:0 0 16px; font-size:.9rem; }
+  nav.links a { color:var(--accent); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
   table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
   th { text-align:right; font-size:.75rem; color:var(--muted); font-weight:600; padding:0 6px 6px; white-space:nowrap; }
   th:first-child, td:first-child { text-align:left; }
   td { padding:4px 6px; text-align:right; }
   td.v { background:var(--out); border:1px solid var(--out-line); }
-  td.st { font-weight:700; }
-  td.min, td.max { font-weight:700; }
-  button, label.btn { font:inherit; cursor:pointer; border-radius:6px; border:1px solid var(--line);
-           background:var(--card); color:var(--fg); padding:7px 12px; display:inline-block; }
-  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
-  textarea { width:100%; min-height:90px; padding:8px; font:inherit; font-size:.8rem; color:inherit;
+  td.st, td.min, td.max { font-weight:700; }
+  button, label.btn, a.btn { font:inherit; cursor:pointer; border-radius:6px; border:1px solid var(--line);
+           background:var(--card); color:var(--fg); padding:7px 12px; display:inline-block; text-decoration:none; }
+  button.primary, label.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  input[type=date] { font:inherit; font-size:16px; padding:6px 8px; border-radius:6px; border:1px solid var(--in-line); background:var(--in); color:inherit; }
+  textarea { width:100%; min-height:90px; padding:8px; font:inherit; font-size:16px; color:inherit;
              background:var(--in); border:1px solid var(--in-line); border-radius:6px; }
   .drop { border:2px dashed var(--in-line); background:var(--in); border-radius:10px; padding:20px; text-align:center; }
   .drop.over { outline:3px solid var(--accent); }
@@ -42,24 +48,32 @@
   ul.msgs { margin:8px 0 0; padding-left:18px; font-size:.85rem; }
   input[type=file] { display:none; }
   .samp { font-size:.8rem; color:var(--muted); display:block; }
+  .chart-box { background:var(--c-surface); border-radius:8px; }
+  .chart-sub { font-size:.85rem; color:var(--muted); margin:0 0 4px; }
+  @media (max-width:600px) {
+    .card { padding:12px; }
+    button, label.btn, a.btn { min-height:44px; }
+    .actions > * { flex:1 1 45%; text-align:center; }
+  }
 </style>
 </head>
 <body>
 <main>
   <h1>Auswertung Messübung</h1>
   <p class="sub">Vergleich der Gruppenergebnisse: L<sub>Aeq</sub> je Tätigkeit und L<sub>EX,8h</sub> mit Spannweite.</p>
+  <nav class="links"><a href="langzeit.html">Langzeitauswertung aller Seminare</a><a href="messuebung.html">Messübung</a></nav>
 
   <div class="card">
     <h2>Ergebnisse laden</h2>
     <div class="drop" id="drop">
-      <p style="margin:0 0 8px">Ergebnisdateien <strong>gruppe-N.json</strong> hierher ziehen oder auswählen</p>
+      <p style="margin:0 0 8px">Ergebnisdateien <strong>gruppe-N.json</strong> oder eine Seminar-Archivdatei hierher ziehen oder auswählen</p>
       <label class="btn primary" for="files">Dateien auswählen</label>
       <input id="files" type="file" accept=".json,application/json" multiple>
     </div>
-    <p class="small" style="margin:12px 0 4px">… oder die per Mail erhaltenen <strong>Mails</strong> einfügen – ganzer Mailtext oder nur die Zeile mit <code>TS32-</code>, mehrere Mails nacheinander möglich:</p>
+    <p class="small" style="margin:12px 0 4px">… oder die erhaltenen <strong>Mails</strong> einfügen – ganzer Mailtext oder nur die Zeile mit <code>TS32-</code>, mehrere Mails nacheinander möglich:</p>
     <textarea id="codes" placeholder="TS32-eyJmb3JtYXQi…"></textarea>
     <div class="actions">
-      <button id="addCodes" class="primary">Codes hinzufügen</button>
+      <button id="addCodes" class="primary">Mails hinzufügen</button>
       <button id="clear">Alle entfernen</button>
     </div>
     <div id="loaded" style="margin-top:10px"></div>
@@ -68,59 +82,67 @@
   </div>
 
   <div id="out" hidden>
+    <div class="card viz">
+      <h2>Grafische Übersicht</h2>
+      <div class="actions" style="margin:0 0 8px">
+        <button id="present" class="primary">Präsentation starten (Vollbild für Beamer)</button>
+      </div>
+      <p class="small" style="margin-top:0">Im Präsentationsmodus: Pfeiltasten oder Presenter zum Blättern, Esc zum Beenden.</p>
+      <div id="charts"></div>
+    </div>
+
     <div class="card">
       <h2>L<sub>Aeq</sub> je Tätigkeit in dB(A) – Vergleich der Gruppen</h2>
-      <table id="tLaeq"></table>
+      <div class="scroll"><table id="tLaeq"></table></div>
     </div>
     <div class="card">
       <h2>L<sub>EX,8h</sub> in dB(A) – Vergleich der Gruppen</h2>
-      <table id="tLex"></table>
+      <div class="scroll"><table id="tLex"></table></div>
     </div>
     <div class="card">
       <h2>Stichproben je Tätigkeit und Gruppe</h2>
       <p class="small" style="margin-top:0">Einzelwerte in dB(A) mit Spannweite der Stichproben innerhalb der Gruppe (Kriterium nach 9.3.2: ≤ 3 dB bei Einzelperson, ≤ 5 dB bei Gruppe).</p>
-      <table id="tSamp"></table>
+      <div class="scroll"><table id="tSamp"></table></div>
     </div>
     <div class="actions"><button id="csv">Übersicht als CSV speichern</button></div>
     <p class="small">Min/Max fett; Spannweite = Max − Min der Gruppenwerte; Ø = energetischer Mittelwert (10·lg des Mittelwerts der 10<sup>0,1·L</sup>); s = Standardabweichung der Gruppenwerte (n − 1). Alle Pegel mit einer Nachkommastelle.</p>
+
+    <div class="card">
+      <h2>Seminar für die Langzeitauswertung archivieren</h2>
+      <p class="small" style="margin-top:0">Erzeugt eine Archivdatei mit den geladenen Gruppen – nur Gruppennummern und Messwerte, keine personenbezogenen Daten.</p>
+      <div class="actions">
+        <label for="semDate">Seminardatum:</label>
+        <input type="date" id="semDate">
+        <button id="archive" class="primary">Archivdatei erstellen</button>
+      </div>
+      <ol class="small" style="margin:10px 0 0; padding-left:18px">
+        <li>Archivdatei erstellen (Name: <code>seminar-JJJJ-MM-TT.json</code>).</li>
+        <li>Auf GitHub hochladen: <a href="https://github.com/McWeizen70/TS32/upload/main/ergebnisse" target="_blank" rel="noopener">TS32 → Ordner ergebnisse → Upload</a>, Datei hineinziehen, „Commit changes“.</li>
+        <li>Nach ein bis zwei Minuten erscheint das Seminar in der <a href="langzeit.html">Langzeitauswertung</a>.</li>
+      </ol>
+      <p class="small">Zwei Seminare am selben Tag: die zweite Datei vor dem Hochladen umbenennen, z. B. <code>seminar-2026-10-17-2.json</code>.</p>
+    </div>
   </div>
 </main>
 
+<script src="ts32-auswertung.js"></script>
 <script>
-const groups = new Map(); // Gruppennummer -> Ergebnisobjekt
-const f1 = x => (typeof x === 'number' && isFinite(x) ? x.toFixed(1).replace('.', ',') : '–');
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const leq = v => 10 * Math.log10(v.reduce((a, l) => a + Math.pow(10, 0.1 * l), 0) / v.length);
-const sdev = v => { const n = v.length; if (n < 2) return NaN; const m = v.reduce((a, b) => a + b, 0) / n; return Math.sqrt(v.reduce((a, l) => a + (l - m) ** 2, 0) / (n - 1)); };
+const { f1, esc, stats } = TS32;
+TS32.injectCSS();
+const groups = new Map(); // Gruppennummer -> Ergebnis (ohne personenbezogene Daten)
 const msgsEl = document.getElementById('msgs');
 const msg = (t, c) => { const li = document.createElement('li'); li.textContent = t; if (c) li.className = c; msgsEl.appendChild(li); };
 
-// Zahl aus Datei/Code übernehmen; alles andere wird zu null
-function toNum(v) {
-  if (typeof v === 'number') return isFinite(v) ? v : null;
-  if (typeof v === 'string' && v.trim() !== '') { const x = Number(v.replace(',', '.')); return isFinite(x) ? x : null; }
-  return null;
-}
-// prüft Aufbau und bringt alle Werte in eine sichere Form (Zahlen als Zahl, Texte als Text)
-function normalize(o) {
-  if (!o || typeof o !== 'object' || o.format !== 'ts32-laerm' || !Array.isArray(o.taetigkeiten)) return null;
-  const gruppe = toNum(o.gruppe);
-  if (!Number.isInteger(gruppe) || gruppe < 1) return null;
-  const taetigkeiten = [];
-  for (const t of o.taetigkeiten) {
-    if (!t || typeof t !== 'object' || typeof t.name !== 'string') return null;
-    taetigkeiten.push({
-      name: t.name,
-      stichproben: Array.isArray(t.stichproben) ? t.stichproben.map(toNum).filter(v => v !== null) : [],
-      laeq: toNum(t.laeq), h: toNum(t.h) || 0, min: toNum(t.min) || 0
-    });
-  }
-  return { gruppe, namen: typeof o.namen === 'string' ? o.namen : '', modus: o.modus === 'gruppe' ? 'gruppe' : 'einzelperson',
-           taetigkeiten, lex: toNum(o.lex) };
-}
 function addResult(raw, quelle) {
-  const o = normalize(raw);
-  if (!o) { msg(`${quelle}: kein gültiges Ergebnis aus dem Lärmrechner.`, 'bad'); return; }
+  if (raw && raw.format === 'ts32-seminar') { // Archivdatei: alle Gruppen übernehmen
+    const sem = TS32.normalizeSeminar(raw);
+    if (!sem) { msg(`${quelle}: keine gültige Seminar-Archivdatei.`, 'bad'); return; }
+    sem.gruppen.forEach(g => addResult(g, `${quelle} (Gruppe ${g.gruppe})`));
+    document.getElementById('semDate').value = sem.datum;
+    return;
+  }
+  const o = TS32.normalizeGroup(raw);
+  if (!o) { msg(`${quelle}: kein gültiges Ergebnis aus der Messübung.`, 'bad'); return; }
   if (groups.has(o.gruppe)) msg(`Gruppe ${o.gruppe} war schon geladen – ersetzt durch ${quelle}.`, 'warn');
   groups.set(o.gruppe, o);
 }
@@ -132,37 +154,17 @@ async function readFiles(list) {
   }
   render();
 }
-// Base64 → Text (UTF-8); wirft bei ungültigen Daten
-function b64text(b64) {
-  const bin = atob(b64);
-  return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
-}
-// Code dekodieren. Hängt Text direkt am Code (z. B. eine Signatur nach einem Zeilenumbruch),
-// wird von hinten gekürzt, bis gültiges JSON übrig bleibt.
-function decodeCode(b64) {
-  for (let len = b64.length - (b64.length % 4); len >= 8; len -= 4) {
-    try { return JSON.parse(b64text(b64.slice(0, len))); } catch { /* weiter kürzen */ }
-  }
-  throw new Error('ungültig');
-}
 function readCodes(text) {
   msgsEl.innerHTML = '';
-  // Zeilenumbrüche aus Mails entfernen, dann nur die Codes herausschneiden
-  const codes = [...text.replace(/\s+/g, '').matchAll(/TS32-([A-Za-z0-9+\/]+={0,2})/g)].map(m => m[1]);
+  const codes = TS32.findCodes(text);
   if (!codes.length) msg('Kein Code gefunden – bitte die Zeile mit „TS32-…“ mit einfügen.', 'bad');
   codes.forEach((c, i) => {
-    try { addResult(decodeCode(c), `Code ${i + 1}`); }
+    try { addResult(TS32.decodeCode(c), `Code ${i + 1}`); }
     catch { msg(`Code ${i + 1}: nicht lesbar – bitte vollständig kopieren.`, 'bad'); }
   });
   render();
 }
 
-function stats(vals) {
-  const v = vals.filter(isFinite);
-  if (!v.length) return null;
-  const mn = Math.min(...v), mx = Math.max(...v);
-  return { mn, mx, range: mx - mn, mean: leq(v), sd: sdev(v), n: v.length };
-}
 function statCells(st) {
   return st ? `<td class="v">${f1(st.mn)}</td><td class="v">${f1(st.mx)}</td><td class="v st">${st.n > 1 ? f1(st.range) : '–'}</td><td class="v">${f1(st.mean)}</td><td class="v">${st.n > 1 ? f1(st.sd) : '–'}</td>`
             : '<td colspan="5"></td>';
@@ -173,14 +175,19 @@ function valCells(vals, st) {
     return `<td class="v${cls}">${f1(v)}</td>`;
   }).join('');
 }
+const statRow = st => (st ? [f1(st.mn), f1(st.mx), st.n > 1 ? f1(st.range) : '', f1(st.mean), st.n > 1 ? f1(st.sd) : ''] : []);
+const summary = st => (st ? `${st.n} Gruppe${st.n > 1 ? 'n' : ''} · Spannweite ${st.n > 1 ? f1(st.range) + ' dB' : '–'} · Ø ${f1(st.mean)} dB(A) · Min ${f1(st.mn)} · Max ${f1(st.mx)}` : 'keine Werte');
 
+let slides = [], csvRows = [];
 function render() {
   const gs = [...groups.values()].sort((a, b) => a.gruppe - b.gruppe);
   document.getElementById('loaded').innerHTML = gs.map(g =>
-    `<span class="chip">Gruppe ${g.gruppe}${g.namen ? ' – ' + esc(g.namen) : ''}<button data-g="${g.gruppe}" title="entfernen" aria-label="Gruppe ${g.gruppe} entfernen">✕</button></span>`).join('');
+    `<span class="chip">Gruppe ${g.gruppe}<button data-g="${g.gruppe}" title="entfernen" aria-label="Gruppe ${g.gruppe} entfernen">✕</button></span>`).join('');
   document.querySelectorAll('#loaded button').forEach(b => b.onclick = () => { groups.delete(+b.dataset.g); render(); });
+  const warnEl = document.getElementById('warn');
+  warnEl.innerHTML = '';
   document.getElementById('out').hidden = !gs.length;
-  if (!gs.length) { document.getElementById('warn').innerHTML = ''; return; }
+  if (!gs.length) { slides = []; return; }
 
   const names = [];
   gs.forEach(g => g.taetigkeiten.forEach(t => { if (!names.includes(t.name)) names.push(t.name); }));
@@ -189,27 +196,27 @@ function render() {
 
   // Tabelle 1: L_Aeq je Tätigkeit
   let h1 = `<thead><tr><th>Tätigkeit</th>${head}</tr></thead><tbody>`;
-  const csv = [['Tätigkeit', ...gs.map(g => 'Gruppe ' + g.gruppe), 'Min', 'Max', 'Spannweite', 'Mittel (energetisch)', 's']];
+  csvRows = [['Tätigkeit', ...gs.map(g => 'Gruppe ' + g.gruppe), 'Min', 'Max', 'Spannweite', 'Mittel (energetisch)', 's']];
   for (const n of names) {
-    const vals = gs.map(g => get(g, n)?.laeq).map(v => (v == null ? NaN : v));
+    const vals = gs.map(g => get(g, n)?.laeq ?? NaN);
     const st = stats(vals);
     h1 += `<tr><td>${esc(n)}</td>${valCells(vals, st)}${statCells(st)}</tr>`;
-    csv.push([n, ...vals.map(f1), ...(st ? [f1(st.mn), f1(st.mx), st.n > 1 ? f1(st.range) : '', f1(st.mean), st.n > 1 ? f1(st.sd) : ''] : [])]);
+    csvRows.push([n, ...vals.map(f1), ...statRow(st)]);
   }
   document.getElementById('tLaeq').innerHTML = h1 + '</tbody>';
 
   // Tabelle 2: L_EX,8h
-  const lv = gs.map(g => (g.lex == null ? NaN : g.lex));
+  const lv = gs.map(g => g.lex ?? NaN);
   const ls = stats(lv);
   document.getElementById('tLex').innerHTML = `<thead><tr><th></th>${head}</tr></thead><tbody><tr><td>L<sub>EX,8h</sub></td>${valCells(lv, ls)}${statCells(ls)}</tr></tbody>`;
-  csv.push([], ['LEX,8h', ...lv.map(f1), ...(ls ? [f1(ls.mn), f1(ls.mx), ls.n > 1 ? f1(ls.range) : '', f1(ls.mean), ls.n > 1 ? f1(ls.sd) : ''] : [])]);
+  csvRows.push([], ['LEX,8h', ...lv.map(f1), ...statRow(ls)]);
 
   // Tabelle 3: Stichproben je Gruppe
   let h3 = `<thead><tr><th>Tätigkeit</th>${gs.map(g => `<th>Gr. ${g.gruppe}</th>`).join('')}</tr></thead><tbody>`;
   for (const n of names) {
     h3 += `<tr><td>${esc(n)}</td>`;
     for (const g of gs) {
-      const t = get(g, n), v = t ? t.stichproben : [];
+      const v = get(g, n)?.stichproben || [];
       const lim = g.modus === 'gruppe' ? 5 : 3;
       const r = v.length > 1 ? Math.max(...v) - Math.min(...v) : NaN;
       const bad = isFinite(r) && r > lim;
@@ -219,19 +226,29 @@ function render() {
   }
   document.getElementById('tSamp').innerHTML = h3 + '</tbody>';
 
+  // Grafiken: L_EX,8h zuerst, dann je Tätigkeit
+  slides = [];
+  const lexRows = gs.map(g => ({ label: `Gruppe ${g.gruppe}`, value: g.lex ?? NaN, samples: [] }));
+  slides.push({ title: 'Tages-Lärmexpositionspegel LEX,8h je Gruppe', sub: summary(ls),
+                svg: TS32.dotChart({ rows: lexRows, title: 'LEX,8h je Gruppe', withThresholds: true }), legend: TS32.legendHTML('dot', true, false) });
+  for (const n of names) {
+    const rows = gs.map(g => { const t = get(g, n); return { label: `Gruppe ${g.gruppe}`, value: t?.laeq ?? NaN, samples: t?.stichproben || [] }; });
+    slides.push({ title: `${n} – LAeq je Gruppe`, sub: summary(stats(rows.map(r => r.value))),
+                  svg: TS32.dotChart({ rows, title: `${n}: LAeq je Gruppe` }), legend: TS32.legendHTML('dot', false) });
+  }
+  document.getElementById('charts').innerHTML = slides.map(s =>
+    `<h3>${TS32.subHTML(s.title)}</h3><p class="chart-sub">${esc(s.sub)}</p><div class="chart-box">${s.svg}</div>${s.legend}`).join('');
+
   // Hinweise zur Vergleichbarkeit
   const w = [];
   for (const n of names) {
-    const d = new Set(gs.map(g => { const t = get(g, n); return t ? Math.round((t.h * 60 + t.min)) : null; }));
+    const d = new Set(gs.map(g => { const t = get(g, n); return t ? Math.round(t.h * 60 + t.min) : null; }));
     if (d.size > 1) w.push(`Einwirkdauer bei „${n}“ weicht zwischen den Gruppen ab – L_EX,8h nur eingeschränkt vergleichbar.`);
   }
   if (new Set(gs.map(g => g.modus)).size > 1) w.push('Die Gruppen haben unterschiedliche Messmodi (Einzelperson/Gruppe) gewählt.');
   const missing = gs.filter(g => g.lex == null).map(g => g.gruppe);
   if (missing.length) w.push(`Gruppe ${missing.join(', ')}: kein L_EX,8h berechnet (Pegel oder Zeiten fehlen).`);
-  const warnEl = document.getElementById('warn');
-  warnEl.innerHTML = '';
   w.forEach(t => { const li = document.createElement('li'); li.textContent = t; li.className = 'warn'; warnEl.appendChild(li); });
-  window.__csv = csv;
 }
 
 document.getElementById('files').onchange = e => { readFiles([...e.target.files]); e.target.value = ''; };
@@ -241,17 +258,18 @@ const drop = document.getElementById('drop');
 ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => readFiles([...e.dataTransfer.files]));
-document.getElementById('csv').onclick = () => {
-  // jede Zelle in Anführungszeichen; Texte, die Excel als Formel lesen würde, mit ' entschärfen
-  const cell = v => {
-    let t = String(v ?? '');
-    if (/^[=+\-@\t\r]/.test(t) && !/^-?\d+(,\d+)?$/.test(t)) t = "'" + t;
-    return '"' + t.replace(/"/g, '""') + '"';
-  };
-  const text = '\ufeff' + window.__csv.map(r => r.map(cell).join(';')).join('\r\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
-  a.download = 'auswertung-messuebung.csv'; document.body.appendChild(a); a.click(); a.remove();
+document.getElementById('csv').onclick = () => TS32.downloadCSV(csvRows, 'auswertung-messuebung.csv');
+document.getElementById('present').onclick = () => TS32.present(slides);
+
+// Archiv für die Langzeitauswertung
+const today = new Date();
+document.getElementById('semDate').value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+document.getElementById('archive').onclick = () => {
+  const datum = document.getElementById('semDate').value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) { alert('Bitte ein Seminardatum wählen.'); return; }
+  const gs = [...groups.values()].sort((a, b) => a.gruppe - b.gruppe);
+  if (!gs.length) return;
+  TS32.downloadText(JSON.stringify(TS32.seminarFile(datum, gs), null, 1), `seminar-${datum}.json`, 'application/json');
 };
 render();
 </script>
