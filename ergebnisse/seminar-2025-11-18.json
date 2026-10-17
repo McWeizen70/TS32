@@ -1,0 +1,211 @@
+{
+ "format": "ts32-seminar",
+ "version": 1,
+ "datum": "2025-11-18",
+ "gruppen": [
+  {
+   "format": "ts32-laerm",
+   "gruppe": 1,
+   "modus": "einzelperson",
+   "taetigkeiten": [
+    {
+     "name": "Laubbläser",
+     "stichproben": [],
+     "laeq": null,
+     "h": 1,
+     "min": 0
+    },
+    {
+     "name": "Excenterpresse",
+     "stichproben": [],
+     "laeq": null,
+     "h": 2,
+     "min": 0
+    },
+    {
+     "name": "Schlagschrauber",
+     "stichproben": [],
+     "laeq": null,
+     "h": 1,
+     "min": 0
+    },
+    {
+     "name": "Akku-Winkelschleifer",
+     "stichproben": [
+      84.2,
+      84.2,
+      84.2
+     ],
+     "laeq": 84.2,
+     "h": 3,
+     "min": 0
+    },
+    {
+     "name": "Netz-Winkelschleifer",
+     "stichproben": [
+      99.2,
+      99.2,
+      99.2
+     ],
+     "laeq": 99.2,
+     "h": 1,
+     "min": 0
+    }
+   ],
+   "lex": 90.563
+  },
+  {
+   "format": "ts32-laerm",
+   "gruppe": 2,
+   "modus": "einzelperson",
+   "taetigkeiten": [
+    {
+     "name": "Laubbläser",
+     "stichproben": [],
+     "laeq": null,
+     "h": 1,
+     "min": 0
+    },
+    {
+     "name": "Excenterpresse",
+     "stichproben": [],
+     "laeq": null,
+     "h": 2,
+     "min": 0
+    },
+    {
+     "name": "Schlagschrauber",
+     "stichproben": [],
+     "laeq": null,
+     "h": 1,
+     "min": 0
+    },
+    {
+     "name": "Akku-Winkelschleifer",
+     "stichproben": [
+      79.6,
+      79.6,
+      79.6
+     ],
+     "laeq": 79.6,
+     "h": 3,
+     "min": 0
+    },
+    {
+     "name": "Netz-Winkelschleifer",
+     "stichproben": [
+      86.1,
+      86.1,
+      86.1
+     ],
+     "laeq": 86.1,
+     "h": 1,
+     "min": 0
+    }
+   ],
+   "lex": 79.3
+  },
+  {
+   "format": "ts32-laerm",
+   "gruppe": 3,
+   "modus": "einzelperson",
+   "taetigkeiten": [
+    {
+     "name": "Laubbläser",
+     "stichproben": [],
+     "laeq": null,
+     "h": 1,
+     "min": 0
+    },
+    {
+     "name": "Excenterpresse",
+     "stichproben": [],
+     "laeq": null,
+     "h": 2,
+     "min": 0
+    },
+    {
+     "name": "Schlagschrauber",
+     "stichproben": [],
+     "laeq": null,
+     "h": 1,
+     "min": 0
+    },
+    {
+     "name": "Akku-Winkelschleifer",
+     "stichproben": [
+      78.8,
+      78.8,
+      78.8
+     ],
+     "laeq": 78.8,
+     "h": 3,
+     "min": 0
+    },
+    {
+     "name": "Netz-Winkelschleifer",
+     "stichproben": [
+      96.6,
+      96.6,
+      96.6
+     ],
+     "laeq": 96.6,
+     "h": 1,
+     "min": 0
+    }
+   ],
+   "lex": 87.78
+  },
+  {
+   "format": "ts32-laerm",
+   "gruppe": 4,
+   "modus": "einzelperson",
+   "taetigkeiten": [
+    {
+     "name": "Laubbläser",
+     "stichproben": [],
+     "laeq": null,
+     "h": 1,
+     "min": 0
+    },
+    {
+     "name": "Excenterpresse",
+     "stichproben": [],
+     "laeq": null,
+     "h": 2,
+     "min": 0
+    },
+    {
+     "name": "Schlagschrauber",
+     "stichproben": [],
+     "laeq": null,
+     "h": 1,
+     "min": 0
+    },
+    {
+     "name": "Akku-Winkelschleifer",
+     "stichproben": [
+      78.7,
+      78.7,
+      78.7
+     ],
+     "laeq": 78.7,
+     "h": 3,
+     "min": 0
+    },
+    {
+     "name": "Netz-Winkelschleifer",
+     "stichproben": [
+      94.8,
+      94.8,
+      94.8
+     ],
+     "laeq": 94.8,
+     "h": 1,
+     "min": 0
+    }
+   ],
+   "lex": 86.078
+  }
+ ]
+}
