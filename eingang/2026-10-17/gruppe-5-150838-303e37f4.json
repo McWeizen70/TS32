@@ -1,0 +1,54 @@
+{
+ "format": "ts32-laerm",
+ "version": 2,
+ "gruppe": 5,
+ "modus": "einzelperson",
+ "taetigkeiten": [
+  {
+   "name": "Laubbläser",
+   "stichproben": [
+    78
+   ],
+   "laeq": 78,
+   "h": 1,
+   "min": 0
+  },
+  {
+   "name": "Excenterpresse",
+   "stichproben": [
+    78
+   ],
+   "laeq": 78,
+   "h": 2,
+   "min": 0
+  },
+  {
+   "name": "Schlagschrauber",
+   "stichproben": [
+    78
+   ],
+   "laeq": 78,
+   "h": 1,
+   "min": 0
+  },
+  {
+   "name": "Akku-Winkelschleifer",
+   "stichproben": [
+    78
+   ],
+   "laeq": 78,
+   "h": 3,
+   "min": 0
+  },
+  {
+   "name": "Netz-Winkelschleifer",
+   "stichproben": [
+    78
+   ],
+   "laeq": 78,
+   "h": 1,
+   "min": 0
+  }
+ ],
+ "lex": 78
+}
