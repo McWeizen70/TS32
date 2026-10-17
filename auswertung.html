@@ -514,16 +514,16 @@ function render() {
   }
   document.getElementById('tSamp').innerHTML = h3 + '</tbody>';
 
-  // Grafiken: L_EX,8h zuerst, dann je Tätigkeit
+  // Grafiken: erst je Tätigkeit, zum Schluss L_EX,8h
   slides = [];
-  const lexRows = gs.map(g => ({ label: `Gruppe ${g.gruppe}`, value: g.lex ?? NaN, samples: [] }));
-  slides.push({ title: 'Tages-Lärmexpositionspegel LEX,8h je Gruppe', sub: summary(ls),
-                svg: TS32.dotChart({ rows: lexRows, title: 'LEX,8h je Gruppe', withThresholds: true }), legend: TS32.legendHTML('dot', true, false) });
   for (const n of names) {
     const rows = gs.map(g => { const t = get(g, n); return { label: `Gruppe ${g.gruppe}`, value: t?.laeq ?? NaN, samples: t?.stichproben || [] }; });
     slides.push({ title: `${n} – LAeq je Gruppe`, sub: summary(stats(rows.map(r => r.value))),
                   svg: TS32.dotChart({ rows, title: `${n}: LAeq je Gruppe` }), legend: TS32.legendHTML('dot', false) });
   }
+  const lexRows = gs.map(g => ({ label: `Gruppe ${g.gruppe}`, value: g.lex ?? NaN, samples: [] }));
+  slides.push({ title: 'Tages-Lärmexpositionspegel LEX,8h je Gruppe', sub: summary(ls),
+                svg: TS32.dotChart({ rows: lexRows, title: 'LEX,8h je Gruppe', withThresholds: true }), legend: TS32.legendHTML('dot', true, false) });
   document.getElementById('charts').innerHTML = slides.map(s =>
     `<h3>${TS32.subHTML(s.title)}</h3><p class="chart-sub">${esc(s.sub)}</p><div class="chart-box">${s.svg}</div>${s.legend}`).join('');
 

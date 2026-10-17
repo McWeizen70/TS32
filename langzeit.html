@@ -54,7 +54,7 @@
 <main>
   <h1>Langzeitauswertung Messübung</h1>
   <p class="sub">Alle archivierten Seminare im Vergleich – je Seminar die Ergebnisse der Gruppen, ihre Spannweite und der energetische Mittelwert.</p>
-  <nav class="links"><a href="auswertung.html">Auswertung eines Seminars</a><a href="messuebung.html">Messübung</a></nav>
+  <nav class="links"><a href="auswertung.html">Auswertung eines Seminars</a><a href="messuebung.html">Messübung</a><a href="langzeit.html" download="langzeit.html">Langzeitauswertung herunterladen (lädt die Ergebnisse weiterhin von GitHub)</a></nav>
 
   <p id="status" class="small" aria-live="polite">Seminare werden geladen …</p>
 
@@ -434,11 +434,10 @@ function render() {
   const names = [];
   allGroups.forEach(({ g }) => g.taetigkeiten.forEach(t => { if (!names.includes(t.name)) names.push(t.name); }));
 
-  // Grafiken
+  // Grafiken: erst je Tätigkeit, zum Schluss L_EX,8h
   slides = [];
   const lexCols = sems.map(s => ({ label: s.label, values: s.gruppen.map(g => g.lex).filter(v => v != null), names: s.gruppen.filter(g => g.lex != null).map(g => `Gruppe ${g.gruppe}`) }));
   const sumTxt = st => (st ? `${st.n} Gruppenergebnisse · Spannweite ${f1(st.range)} dB · Ø ${f1(st.mean)} dB(A) · Min ${f1(st.mn)} · Max ${f1(st.mx)}` : 'keine Werte');
-  slides.push({ title: 'LEX,8h je Seminar', sub: sumTxt(lexSt), svg: TS32.seriesChart({ cols: lexCols, title: 'LEX,8h je Seminar', withThresholds: true }), legend: TS32.legendHTML('series', true) });
   for (const n of names) {
     const cols = sems.map(s => {
       const pts = s.gruppen.map(g => ({ g, t: g.taetigkeiten.find(t => t.name === n) })).filter(p => p.t && p.t.laeq != null);
@@ -447,6 +446,7 @@ function render() {
     slides.push({ title: `${n} – LAeq je Seminar`, sub: sumTxt(stats(cols.flatMap(c => c.values))),
                   svg: TS32.seriesChart({ cols, title: `${n}: LAeq je Seminar` }), legend: TS32.legendHTML('series', false) });
   }
+  slides.push({ title: 'LEX,8h je Seminar', sub: sumTxt(lexSt), svg: TS32.seriesChart({ cols: lexCols, title: 'LEX,8h je Seminar', withThresholds: true }), legend: TS32.legendHTML('series', true) });
   document.getElementById('charts').innerHTML = slides.map(s =>
     `<h3>${TS32.subHTML(s.title)}</h3><p class="chart-sub">${esc(s.sub)}</p><div class="chart-box">${s.svg}</div>${s.legend}`).join('');
 
