@@ -23,11 +23,6 @@
   main { max-width:760px; margin:0 auto; padding:24px 16px 48px; }
   h1 { font-size:1.4rem; margin:0 0 4px; }
   p.sub { margin:0 0 20px; color:var(--muted); font-size:.9rem; }
-  .tabs { display:flex; gap:4px; margin:0 0 16px; border-bottom:1px solid var(--line); }
-  .tabs a, .tabs button { border:1px solid transparent; border-bottom:0; border-radius:8px 8px 0 0; background:none;
-                 color:var(--muted); padding:8px 16px; margin-bottom:-1px; font-weight:600; }
-  .tabs a.active, .tabs button.active { background:var(--card); border-color:var(--line); color:var(--fg); }
-  .tabs a { text-decoration:none; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
   table { width:100%; border-collapse:collapse; }
   th { text-align:left; font-size:.75rem; color:var(--muted); font-weight:600; padding:0 6px 6px; }
@@ -97,7 +92,6 @@
   @media (max-width:600px) {
     main { padding-top:16px; }
     button, a.btn, select, input:not([type=checkbox]) { min-height:44px; }
-    .tabs a, .tabs button { flex:1; padding:12px 8px; }
     .card > table > thead { display:none; }
     .card > table, .card > table > tbody,
     tr.det, tr.det td, tr.samples, tr.samples td { display:block; }
@@ -131,11 +125,6 @@
 <main>
   <h1>Tages-Lärmexpositionspegel L<sub>EX,8h</sub></h1>
   <p class="sub">Berechnung nach DIN EN ISO 9612:2025 / LärmVibrationsArbSchV aus Teilexpositionen.</p>
-
-  <nav class="tabs">
-    <a href="laermrechner.html" class="active" aria-current="page">Rechner</a>
-    <a href="messuebung.html">Messübung</a>
-  </nav>
 
   <div class="card">
     <table>
