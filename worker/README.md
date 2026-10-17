@@ -1,7 +1,7 @@
 # Upload-Worker für die Messübung
 
 Nimmt das Ergebnis aus `messuebung.html` entgegen und legt es als Datei
-`eingang/JJJJ-MM-TT/gruppe-N-<Kennung>.json` im Repo ab. Das GitHub-Token liegt nur im Worker.
+`eingang/JJJJ-MM-TT/gruppe-N-HHMMSS-<Kennung>.json` (die Uhrzeit sorgt dafür, dass bei mehrfacher Sendung einer Gruppe die letzte gilt) im Repo ab. Das GitHub-Token liegt nur im Worker.
 
 ## Einrichtung (einmalig)
 
@@ -34,9 +34,9 @@ Nimmt das Ergebnis aus `messuebung.html` entgegen und legt es als Datei
 
 Der Worker akzeptiert nur das erwartete Format (Gruppennummer 1–99, Zahlenbereiche, höchstens 20 KB)
 und übernimmt nur bekannte Felder – Namen o. Ä. gelangen nie ins Repo. Die Herkunftsprüfung
-(`Origin`) hält Browser anderer Seiten ab, ein gezieltes Skript kann sie aber fälschen. Empfehlung:
-im Cloudflare-Dashboard unter *Security → WAF → Rate limiting rules* eine Regel für die Worker-Adresse
-anlegen (z. B. höchstens 10 Anfragen pro Minute und IP). Unerwünschte Dateien lassen sich in `eingang/`
-einfach löschen.
+(`Origin`) hält Browser anderer Seiten ab, ein gezieltes Skript kann sie aber fälschen. Eine
+Rate-Limit-Regel über die Cloudflare-WAF ist für `workers.dev`-Adressen nicht verfügbar (die WAF-Regeln gelten
+für eigene Domains; das Add-on ist kostenpflichtig). Unerwünschte Dateien lassen sich in `eingang/`
+einfach löschen; bei Missbrauch das Token auf GitHub widerrufen und ein neues erzeugen.
 
 Das Repo ist öffentlich: Dateien in `eingang/` sind für jeden lesbar (nur Gruppennummer und Messwerte).

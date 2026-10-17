@@ -65,6 +65,14 @@
 
   <div class="card">
     <h2>Ergebnisse laden</h2>
+    <p class="small" style="margin:0 0 6px">Direkt gesendete Ergebnisse der Gruppen abrufen (Ordner <code>eingang</code> im Repo, benötigt Internet):</p>
+    <div class="actions" style="margin:0 0 4px">
+      <label for="eingDate">Seminardatum:</label>
+      <input type="date" id="eingDate">
+      <button id="eingLoad" class="primary">Eingegangene Ergebnisse laden</button>
+    </div>
+    <p class="small" style="margin:4px 0 14px">Ergebnisse, die per „Ergebnis direkt senden“ ankommen, sind nach wenigen Sekunden abrufbar. Zwei Seminare am selben Tag landen im selben Ordner.</p>
+    <p class="small" style="margin:0 0 6px">Alternativ:</p>
     <div class="drop" id="drop">
       <p style="margin:0 0 8px">Ergebnisdateien <strong>gruppe-N.json</strong> oder eine Seminar-Archivdatei hierher ziehen oder auswählen</p>
       <label class="btn primary" for="files">Dateien auswählen</label>
@@ -539,6 +547,43 @@ function render() {
   w.forEach(t => { const li = document.createElement('li'); li.textContent = t; li.className = 'warn'; warnEl.appendChild(li); });
 }
 
+// Direkt gesendete Ergebnisse aus dem Ordner eingang/<Datum> des Repos laden (öffentliche GitHub-API, ohne Anmeldung)
+const EINGANG_API = 'https://api.github.com/repos/McWeizen70/TS32/contents/eingang/';
+async function loadEingang() {
+  const datum = document.getElementById('eingDate').value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) { alert('Bitte ein Seminardatum wählen.'); return; }
+  msgsEl.innerHTML = '';
+  const btn = document.getElementById('eingLoad');
+  btn.disabled = true;
+  try {
+    const res = await fetch(EINGANG_API + datum, { headers: { Accept: 'application/vnd.github+json' } });
+    if (res.status === 404) { msg(`Für den ${TS32.datumDE(datum)} sind keine Ergebnisse eingegangen.`, 'warn'); return; }
+    if (!res.ok) throw new Error(res.status);
+    // je Gruppe nach Dateiname sortieren: bei mehrfacher Sendung gilt die zuletzt gesendete
+    const files = (await res.json()).filter(f => f.type === 'file' && /^gruppe-\d+-.*\.json$/.test(f.name))
+      .sort((a, b) => {
+        const [, na, ra] = /^gruppe-(\d+)-(.*)\.json$/.exec(a.name), [, nb, rb] = /^gruppe-(\d+)-(.*)\.json$/.exec(b.name);
+        return (na - nb) || (ra < rb ? -1 : ra > rb ? 1 : 0);
+      });
+    if (!files.length) { msg(`Für den ${TS32.datumDE(datum)} sind keine Ergebnisse eingegangen.`, 'warn'); return; }
+    let ok = 0;
+    for (const f of files) {
+      try {
+        const r = await fetch(f.download_url + '?t=' + Date.now()); // Zeitstempel: nie eine veraltete Zwischenspeicher-Kopie
+        if (!r.ok) throw new Error(r.status);
+        addResult(await r.json(), f.name); ok++;
+      } catch { msg(`${f.name}: konnte nicht geladen werden.`, 'bad'); }
+    }
+    msg(`${ok} Ergebnis${ok === 1 ? '' : 'se'} vom ${TS32.datumDE(datum)} geladen.`, 'ok');
+    document.getElementById('semDate').value = datum;
+  } catch {
+    msg('Abruf nicht möglich – bitte Internetverbindung prüfen oder Dateien bzw. Mails verwenden.', 'bad');
+  } finally {
+    btn.disabled = false;
+    render();
+  }
+}
+document.getElementById('eingLoad').onclick = loadEingang;
 document.getElementById('files').onchange = e => { readFiles([...e.target.files]); e.target.value = ''; };
 document.getElementById('addCodes').onclick = () => { readCodes(document.getElementById('codes').value); document.getElementById('codes').value = ''; };
 document.getElementById('clear').onclick = () => { groups.clear(); msgsEl.innerHTML = ''; render(); };
@@ -551,7 +596,8 @@ document.getElementById('present').onclick = () => TS32.present(slides);
 
 // Archiv für die Langzeitauswertung
 const today = new Date();
-document.getElementById('semDate').value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+document.getElementById('semDate').value = document.getElementById('eingDate').value =
+  `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 document.getElementById('archive').onclick = () => {
   const datum = document.getElementById('semDate').value;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) { alert('Bitte ein Seminardatum wählen.'); return; }
