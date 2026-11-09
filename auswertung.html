@@ -547,8 +547,36 @@ function render() {
   w.forEach(t => { const li = document.createElement('li'); li.textContent = t; li.className = 'warn'; warnEl.appendChild(li); });
 }
 
-// Direkt gesendete Ergebnisse aus dem Ordner eingang/<Datum> des Repos laden (öffentliche GitHub-API, ohne Anmeldung)
+// Direkt gesendete Ergebnisse eines Tages laden. Zuerst über den Upload-Worker (eine Anfrage, kein Abruflimit),
+// sonst über die öffentliche GitHub-API (ohne Anmeldung nur 60 Abrufe pro Stunde und IP-Adresse).
+const WORKER_URL = 'https://ts32-upload.cm-artmetall.workers.dev/';
 const EINGANG_API = 'https://api.github.com/repos/McWeizen70/TS32/contents/eingang/';
+const fileParts = n => /^gruppe-(\d+)-(.*)\.json$/.exec(n);
+// je Gruppe nach Dateiname sortieren: bei mehrfacher Sendung gilt die zuletzt gesendete
+const byGroupThenName = (a, b) => { const [, na, ra] = fileParts(a.name), [, nb, rb] = fileParts(b.name); return (na - nb) || (ra < rb ? -1 : ra > rb ? 1 : 0); };
+
+async function eingangWorker(datum) {
+  const res = await fetch(`${WORKER_URL}?datum=${datum}`);
+  const j = await res.json();
+  if (!res.ok || !j.ok || !Array.isArray(j.dateien)) throw new Error('Worker ' + res.status);
+  return j.dateien.map(f => ({ name: f.name, daten: f.daten }));
+}
+async function eingangGitHub(datum) {
+  const res = await fetch(EINGANG_API + datum, { headers: { Accept: 'application/vnd.github+json' } });
+  if (res.status === 404) return [];
+  if (res.status === 403 || res.status === 429) throw new Error('GitHub-Abruflimit erreicht');
+  if (!res.ok) throw new Error('GitHub ' + res.status);
+  const files = (await res.json()).filter(f => f.type === 'file' && fileParts(f.name)).sort(byGroupThenName);
+  const out = [];
+  for (const f of files) {
+    try {
+      const r = await fetch(f.download_url + '?t=' + Date.now()); // Zeitstempel: nie eine veraltete Zwischenspeicher-Kopie
+      if (!r.ok) throw new Error(r.status);
+      out.push({ name: f.name, daten: await r.json() });
+    } catch { msg(`${f.name}: konnte nicht geladen werden.`, 'bad'); }
+  }
+  return out;
+}
 async function loadEingang() {
   const datum = document.getElementById('eingDate').value;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) { alert('Bitte ein Seminardatum wählen.'); return; }
@@ -556,28 +584,16 @@ async function loadEingang() {
   const btn = document.getElementById('eingLoad');
   btn.disabled = true;
   try {
-    const res = await fetch(EINGANG_API + datum, { headers: { Accept: 'application/vnd.github+json' } });
-    if (res.status === 404) { msg(`Für den ${TS32.datumDE(datum)} sind keine Ergebnisse eingegangen.`, 'warn'); return; }
-    if (!res.ok) throw new Error(res.status);
-    // je Gruppe nach Dateiname sortieren: bei mehrfacher Sendung gilt die zuletzt gesendete
-    const files = (await res.json()).filter(f => f.type === 'file' && /^gruppe-\d+-.*\.json$/.test(f.name))
-      .sort((a, b) => {
-        const [, na, ra] = /^gruppe-(\d+)-(.*)\.json$/.exec(a.name), [, nb, rb] = /^gruppe-(\d+)-(.*)\.json$/.exec(b.name);
-        return (na - nb) || (ra < rb ? -1 : ra > rb ? 1 : 0);
-      });
-    if (!files.length) { msg(`Für den ${TS32.datumDE(datum)} sind keine Ergebnisse eingegangen.`, 'warn'); return; }
-    let ok = 0;
-    for (const f of files) {
-      try {
-        const r = await fetch(f.download_url + '?t=' + Date.now()); // Zeitstempel: nie eine veraltete Zwischenspeicher-Kopie
-        if (!r.ok) throw new Error(r.status);
-        addResult(await r.json(), f.name); ok++;
-      } catch { msg(`${f.name}: konnte nicht geladen werden.`, 'bad'); }
+    let list, why = [];
+    try { list = await eingangWorker(datum); } catch (e) { why.push(e.message === 'Failed to fetch' ? 'Worker nicht erreichbar' : e.message); }
+    if (!list) {
+      try { list = await eingangGitHub(datum); } catch (e) { why.push(e.message === 'Failed to fetch' ? 'GitHub nicht erreichbar' : e.message); }
     }
-    msg(`${ok} Ergebnis${ok === 1 ? '' : 'se'} vom ${TS32.datumDE(datum)} geladen.`, 'ok');
+    if (!list) { msg(`Abruf nicht möglich (${why.join('; ')}) – bitte Dateien oder Mails verwenden.`, 'bad'); return; }
+    if (!list.length) { msg(`Für den ${TS32.datumDE(datum)} sind keine Ergebnisse eingegangen.`, 'warn'); return; }
+    list.forEach(f => addResult(f.daten, f.name));
+    msg(`${list.length} Ergebnis${list.length === 1 ? '' : 'se'} vom ${TS32.datumDE(datum)} geladen.`, 'ok');
     document.getElementById('semDate').value = datum;
-  } catch {
-    msg('Abruf nicht möglich – bitte Internetverbindung prüfen oder Dateien bzw. Mails verwenden.', 'bad');
   } finally {
     btn.disabled = false;
     render();
