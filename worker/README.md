@@ -3,6 +3,14 @@
 Nimmt das Ergebnis aus `messuebung.html` entgegen und legt es als Datei
 `eingang/JJJJ-MM-TT/gruppe-N-HHMMSS-<Kennung>.json` (die Uhrzeit sorgt dafür, dass bei mehrfacher Sendung einer Gruppe die letzte gilt) im Repo ab. Das GitHub-Token liegt nur im Worker.
 
+## Abfrage der Ergebnisse (GET)
+
+`GET <Worker-Adresse>?datum=JJJJ-MM-TT` liefert alle Ergebnisse dieses Tages als JSON. `auswertung.html` nutzt das
+zuerst und greift nur bei einem Fehler direkt auf die GitHub-API zu. Der Worker fragt GitHub mit dem Token ab; die
+direkte Abfrage ohne Anmeldung ist auf 60 Abrufe pro Stunde und IP-Adresse begrenzt (in Firmennetzen mit gemeinsamer
+Adresse schnell erreicht). Ausgegeben werden nur geprüfte Ergebnisse (gleiche Prüfung wie beim Senden), höchstens 40
+je Tag. Die Daten sind ohnehin öffentlich, daher ist der Abruf von jeder Herkunft erlaubt.
+
 ## Einrichtung (einmalig)
 
 1. **GitHub-Token erzeugen:** GitHub → Settings → Developer settings → Personal access tokens →
