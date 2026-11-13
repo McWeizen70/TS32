@@ -15,7 +15,7 @@ Begleitung des Seminars TS32 "Lärm am Arbeitsplatz"
 
 ### Ablauf Gruppenübung
 1. Gruppe öffnet die Messübung über den QR-Code (oder „Messübung herunterladen“ für die Arbeit ohne Netz).
-2. Gruppennummer eintragen, Stichproben je Tätigkeit eingeben (Zeiten sind mit 1 / 2 / 1 / 3 / 1 h vorbelegt).
+2. Gruppennummer eintragen, Stichproben je Tätigkeit und den höchsten Spitzenschalldruckpegel L<sub>C,peak</sub> des Geräts eingeben. Die Einwirkdauern (1 / 2 / 1 / 3 / 1 h) sind fest vorgegeben und nicht änderbar.
 3. **„Ergebnis direkt senden“** übermittelt das Ergebnis über den Upload-Worker ins Repo (Ordner `eingang/`). Nur auf der Webseite, nicht in der heruntergeladenen Datei. Ausweichwege: **„Ergebnis per Mail senden“** (fertige Mail an m.radtke@bghw.de mit dem Ergebnis-Code) oder **„Ergebnis speichern“** (Datei `gruppe-N.json`).
 4. Seminarleitung öffnet `auswertung.html`, wählt das Seminardatum und klickt **„Eingegangene Ergebnisse laden“**. Alternativ Mailtexte einfügen (Signaturen stören nicht) oder Dateien laden. Ergebnis: Tabellen, Grafiken und der Präsentationsmodus für den Beamer (Pfeiltasten, Esc).
 5. Für die Langzeitauswertung in der Auswertung „Archivdatei erstellen“ und die Datei im Ordner `ergebnisse/` hochladen.

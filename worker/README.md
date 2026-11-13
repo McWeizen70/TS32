@@ -40,7 +40,7 @@ je Tag. Die Daten sind ohnehin öffentlich, daher ist der Abruf von jeder Herkun
 
 ## Schutz vor Missbrauch
 
-Der Worker akzeptiert nur das erwartete Format (Gruppennummer 1–99, Zahlenbereiche, höchstens 20 KB)
+Der Worker akzeptiert nur das erwartete Format (Version 2 oder 3, Gruppennummer 1–99, Zahlenbereiche, `lcpeak` 0–200 dB(C) oder leer, höchstens 20 KB)
 und übernimmt nur bekannte Felder – Namen o. Ä. gelangen nie ins Repo. Die Herkunftsprüfung
 (`Origin`) hält Browser anderer Seiten ab, ein gezieltes Skript kann sie aber fälschen. Eine
 Rate-Limit-Regel über die Cloudflare-WAF ist für `workers.dev`-Adressen nicht verfügbar (die WAF-Regeln gelten

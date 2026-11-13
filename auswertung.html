@@ -48,6 +48,8 @@
   ul.msgs { margin:8px 0 0; padding-left:18px; font-size:.85rem; }
   input[type=file] { display:none; }
   .samp { font-size:.8rem; color:var(--muted); display:block; }
+  td.pk-warn { font-weight:700; box-shadow:inset 0 0 0 2px var(--warn); }
+  td.pk-crit { font-weight:700; color:var(--bad); box-shadow:inset 0 0 0 2px var(--bad); }
   .chart-box { background:var(--c-surface); border-radius:8px; }
   .chart-sub { font-size:.85rem; color:var(--muted); margin:0 0 4px; }
   @media (max-width:600px) {
@@ -106,6 +108,11 @@
     <div class="card">
       <h2>L<sub>EX,8h</sub> in dB(A) – Vergleich der Gruppen</h2>
       <div class="scroll"><table id="tLex"></table></div>
+    </div>
+    <div class="card" id="cPeak" hidden>
+      <h2>L<sub>C,peak</sub> je Tätigkeit in dB(C) – Vergleich der Gruppen</h2>
+      <p class="small" style="margin-top:0">Höchster Spitzenschalldruckpegel je Gerät. <strong class="warn">Orange umrandet</strong>: unterer Auslösewert 135 dB(C) erreicht, <strong class="bad">rot umrandet</strong>: oberer Auslösewert und Expositionsgrenzwert 137 dB(C) erreicht oder überschritten (LärmVibrationsArbSchV).</p>
+      <div class="scroll"><table id="tPeak"></table></div>
     </div>
     <div class="card">
       <h2>Stichproben je Tätigkeit und Gruppe</h2>
@@ -175,7 +182,7 @@ const TS32 = (() => {
       taetigkeiten.push({
         name: t.name.slice(0, 80),
         stichproben: Array.isArray(t.stichproben) ? t.stichproben.map(toNum).filter(v => v !== null) : [],
-        laeq: toNum(t.laeq), h: Math.max(0, toNum(t.h) || 0), min: Math.max(0, toNum(t.min) || 0)
+        laeq: toNum(t.laeq), lcpeak: toNum(t.lcpeak), h: Math.max(0, toNum(t.h) || 0), min: Math.max(0, toNum(t.min) || 0)
       });
     }
     return { format: 'ts32-laerm', gruppe, modus: o.modus === 'gruppe' ? 'gruppe' : 'einzelperson', taetigkeiten, lex: toNum(o.lex) };
@@ -220,20 +227,21 @@ const TS32 = (() => {
   }
   const tickStep = span => (span <= 10 ? 1 : span <= 24 ? 2 : 5);
   const svgOpen = (w, h, label) => `<svg xmlns="${NS}" class="ts32-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}" preserveAspectRatio="xMidYMid meet">`;
-  function thresholdsIn(dom) {
-    return [{ v: LOW, cls: 'thr-warn', label: 'unterer Auslösewert 80', anchor: 'end', dx: -8 },
-            { v: HIGH, cls: 'thr-crit', label: '85 oberer Auslösewert', anchor: 'start', dx: 8 }]
-      .filter(t => t.v >= dom[0] && t.v <= dom[1]);
-  }
+  const THRESHOLDS = [{ v: LOW, cls: 'thr-warn', label: 'unterer Auslösewert 80', anchor: 'end', dx: -8 },
+                      { v: HIGH, cls: 'thr-crit', label: '85 oberer Auslösewert', anchor: 'start', dx: 8 }];
+  const thresholdsIn = (dom, list = THRESHOLDS) => list.filter(t => t.v >= dom[0] && t.v <= dom[1]);
 
   // Punktdiagramm: eine Zeile je Gruppe; gefüllter Punkt = L_Aeq bzw. L_EX,8h, offene Kreise = Stichproben,
   // Band = Spannweite zwischen den Gruppen, gestrichelte Linie = energetischer Mittelwert.
-  function dotChart({ rows, title, withThresholds = false }) {
-    const W = 960, L = 170, R = 110, T = 92, B = 64, RH = 58;
+  // unit: Einheit der Werte; thresholds: eigene Grenzwertlinien statt 80/85 dB(A); summary=false blendet Band und Mittelwert aus.
+  function dotChart({ rows, title, withThresholds = false, unit = 'dB(A)', thresholds = null, summary = true }) {
+    const W = 960, R = 110, T = 92, B = 64, RH = 58;
+    const L = Math.max(170, 24 + 13 * Math.max(0, ...rows.map(r => String(r.label).length))); // Platz für lange Zeilenbeschriftungen
     const n = Math.max(rows.length, 1), H = T + n * RH + B;
     const vals = rows.map(r => r.value).filter(isFinite);
     const samples = rows.flatMap(r => r.samples || []);
-    const dom = niceDomain(vals.concat(samples), withThresholds ? [LOW, HIGH] : []);
+    const thr = thresholds || THRESHOLDS;
+    const dom = niceDomain(vals.concat(samples), withThresholds ? thr.map(t => t.v) : []);
     const x = v => L + (v - dom[0]) / (dom[1] - dom[0]) * (W - L - R);
     const y = i => T + i * RH + RH / 2;
     const st = stats(vals);
@@ -244,18 +252,18 @@ const TS32 = (() => {
       s += `<line class="grid" x1="${x(t)}" x2="${x(t)}" y1="${T - 8}" y2="${H - B + 6}"/>`;
       s += `<text class="tick" x="${x(t)}" y="${H - B + 32}" text-anchor="middle">${t}</text>`;
     }
-    s += `<text class="axis" x="${W - R}" y="${H - 8}" text-anchor="end">dB(A)</text>`;
+    s += `<text class="axis" x="${W - R}" y="${H - 8}" text-anchor="end">${esc(unit)}</text>`;
     // Spannweite zwischen den Gruppen
-    if (st && st.n > 1) {
+    if (summary && st && st.n > 1) {
       s += `<rect class="band" x="${x(st.mn)}" y="${T - 8}" width="${Math.max(2, x(st.mx) - x(st.mn))}" height="${n * RH + 16}" rx="4"><title>Spannweite ${f1(st.range)} dB</title></rect>`;
     }
     // Grenzwertlinien
-    if (withThresholds) for (const t of thresholdsIn(dom)) {
+    if (withThresholds) for (const t of thresholdsIn(dom, thr)) {
       s += `<line class="${t.cls}" x1="${x(t.v)}" x2="${x(t.v)}" y1="${T - 30}" y2="${H - B + 6}"/>`;
       s += `<text class="thr-label" x="${x(t.v) + t.dx}" y="${T - 34}" text-anchor="${t.anchor}">${t.label}</text>`;
     }
     // Mittelwert
-    if (st) {
+    if (summary && st) {
       s += `<line class="mean" x1="${x(st.mean)}" x2="${x(st.mean)}" y1="${T - 8}" y2="${H - B + 6}"/>`;
       s += `<text class="mean-label" x="${x(st.mean)}" y="${T - (withThresholds ? 62 : 22)}" text-anchor="middle">Ø ${f1(st.mean)}</text>`;
     }
@@ -264,10 +272,10 @@ const TS32 = (() => {
       s += `<text class="row-label" x="${L - 16}" y="${y(i) + 7}" text-anchor="end">${esc(r.label)}</text>`;
       s += `<line class="row-line" x1="${L}" x2="${W - R}" y1="${y(i)}" y2="${y(i)}"/>`;
       for (const v of r.samples || []) {
-        s += `<circle class="sample" cx="${x(v)}" cy="${y(i)}" r="7"><title>${esc(r.label)}: Stichprobe ${f1(v)} dB(A)</title></circle>`;
+        s += `<circle class="sample" cx="${x(v)}" cy="${y(i)}" r="7"><title>${esc(r.label)}: Stichprobe ${f1(v)} ${esc(unit)}</title></circle>`;
       }
       if (isFinite(r.value)) {
-        const tip = `${esc(r.label)}: ${f1(r.value)} dB(A)` + ((r.samples || []).length ? ` · Stichproben ${r.samples.map(f1).join(' · ')}` : '');
+        const tip = `${esc(r.label)}: ${f1(r.value)} ${esc(unit)}` + ((r.samples || []).length ? ` · Stichproben ${r.samples.map(f1).join(' · ')}` : '');
         s += `<circle class="dot" cx="${x(r.value)}" cy="${y(i)}" r="12"><title>${tip}</title></circle>`;
         s += `<text class="val" x="${W - R + 16}" y="${y(i) + 7}">${f1(r.value)}</text>`;
       } else {
@@ -368,7 +376,7 @@ const TS32 = (() => {
   function injectCSS() { if (cssDone) return; const st = document.createElement('style'); st.textContent = CHART_CSS; document.head.appendChild(st); cssDone = true; }
 
   // „LEX,8h“ / „LAeq“ mit tiefgestellten Indizes ausgeben (Text wird vorher maskiert)
-  const subHTML = t => esc(t).replace('LEX,8h', 'L<sub>EX,8h</sub>').replace('LAeq', 'L<sub>Aeq</sub>');
+  const subHTML = t => esc(t).replace('LEX,8h', 'L<sub>EX,8h</sub>').replace('LAeq', 'L<sub>Aeq</sub>').replace('LC,peak', 'L<sub>C,peak</sub>');
 
   // slides: [{ title, sub, svg, legend }]
   function present(slides, start = 0) {
@@ -424,6 +432,7 @@ const TS32 = (() => {
 </script>
 <script>
 const { f1, esc, stats } = TS32;
+const PEAK_LOW = 135, PEAK_HIGH = 137; // Auslösewerte L_pC,peak in dB(C)
 TS32.injectCSS();
 const groups = new Map(); // Gruppennummer -> Ergebnis (ohne personenbezogene Daten)
 const msgsEl = document.getElementById('msgs');
@@ -507,6 +516,26 @@ function render() {
   document.getElementById('tLex').innerHTML = `<thead><tr><th></th>${head}</tr></thead><tbody><tr><td>L<sub>EX,8h</sub></td>${valCells(lv, ls)}${statCells(ls)}</tr></tbody>`;
   csvRows.push([], ['LEX,8h', ...lv.map(f1), ...statRow(ls)]);
 
+  // Tabelle: L_C,peak je Tätigkeit (höchster Spitzenschalldruckpegel des Geräts), Vergleich mit den Auslösewerten
+  const pkOf = (g, n) => get(g, n)?.lcpeak ?? NaN;
+  const mx = vs => { const a = vs.filter(isFinite); return a.length ? Math.max(...a) : NaN; };
+  const gmax = gs.map(g => mx(names.map(n => pkOf(g, n))));
+  const anyPeak = gmax.some(isFinite);
+  document.getElementById('cPeak').hidden = !anyPeak;
+  if (anyPeak) {
+    const pcell = v => (isFinite(v) ? `<td class="v ${v >= PEAK_HIGH ? 'pk-crit' : v >= PEAK_LOW ? 'pk-warn' : ''}">${f1(v)}</td>` : '<td class="v">–</td>');
+    let h4 = `<thead><tr><th>Tätigkeit</th>${gs.map(g => `<th>Gr. ${g.gruppe}</th>`).join('')}<th>Max</th></tr></thead><tbody>`;
+    csvRows.push([], ['LC,peak in dB(C)', ...gs.map(g => 'Gruppe ' + g.gruppe), 'Max']);
+    for (const n of names) {
+      const v = gs.map(g => pkOf(g, n));
+      h4 += `<tr><td>${esc(n)}</td>${v.map(pcell).join('')}${pcell(mx(v))}</tr>`;
+      csvRows.push([n, ...v.map(f1), f1(mx(v))]);
+    }
+    h4 += `<tr><td><strong>Höchster Wert je Gruppe</strong></td>${gmax.map(pcell).join('')}${pcell(mx(gmax))}</tr></tbody>`;
+    csvRows.push(['Höchster Wert je Gruppe', ...gmax.map(f1), f1(mx(gmax))]);
+    document.getElementById('tPeak').innerHTML = h4;
+  }
+
   // Tabelle 3: Stichproben je Gruppe
   let h3 = `<thead><tr><th>Tätigkeit</th>${gs.map(g => `<th>Gr. ${g.gruppe}</th>`).join('')}</tr></thead><tbody>`;
   for (const n of names) {
@@ -532,6 +561,14 @@ function render() {
   const lexRows = gs.map(g => ({ label: `Gruppe ${g.gruppe}`, value: g.lex ?? NaN, samples: [] }));
   slides.push({ title: 'Tages-Lärmexpositionspegel LEX,8h je Gruppe', sub: summary(ls),
                 svg: TS32.dotChart({ rows: lexRows, title: 'LEX,8h je Gruppe', withThresholds: true }), legend: TS32.legendHTML('dot', true, false) });
+  if (anyPeak) {
+    const rows = names.map(n => ({ label: n, value: mx(gs.map(g => pkOf(g, n))), samples: [] }));
+    const thr = [{ v: PEAK_LOW, cls: 'thr-warn', label: 'unterer Auslösewert 135', anchor: 'end', dx: -8 },
+                 { v: PEAK_HIGH, cls: 'thr-crit', label: '137 oberer Auslösewert', anchor: 'start', dx: 8 }];
+    slides.push({ title: 'Spitzenschalldruckpegel LC,peak je Tätigkeit', sub: `Höchster Wert aller Gruppen je Tätigkeit · insgesamt höchster Wert ${f1(mx(gmax))} dB(C)`,
+                  svg: TS32.dotChart({ rows, title: 'LC,peak je Tätigkeit', withThresholds: true, unit: 'dB(C)', thresholds: thr, summary: false }),
+                  legend: '<div class="chart-legend"><span><i class="k k-dot"></i>Höchster Wert aller Gruppen</span><span><i class="k k-warn"></i>unterer Auslösewert</span><span><i class="k k-crit"></i>oberer Auslösewert</span></div>' });
+  }
   document.getElementById('charts').innerHTML = slides.map(s =>
     `<h3>${TS32.subHTML(s.title)}</h3><p class="chart-sub">${esc(s.sub)}</p><div class="chart-box">${s.svg}</div>${s.legend}`).join('');
 
