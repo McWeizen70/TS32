@@ -42,6 +42,7 @@
   button, a.btn { font:inherit; cursor:pointer; border-radius:6px; border:1px solid var(--line);
            background:var(--card); color:var(--fg); padding:7px 12px; text-decoration:none; display:inline-block; }
   [hidden] { display:none !important; }
+  button:disabled { opacity:.7; cursor:default; }
   button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
   /* Direktversand verfügbar: „Ergebnis direkt senden“ hervorheben, übrige Schaltflächen zurücknehmen */
   body.direct #uebSend { padding:10px 20px; font-weight:600; box-shadow:0 1px 4px rgba(37,87,214,.35); }
@@ -394,18 +395,38 @@ function sendMail() {
   setExportMsg('Mailprogramm wird geöffnet – bitte die Mail absenden.');
   window.location.href = `mailto:${MAIL_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
+// Zustand der Schaltflächen beim Direktversand: Sie bleiben blau, zeigen aber „Wird gesendet …“ bzw. „✓ Übermittelt“
+const sendLabels = {
+  idle: { uebSend: 'Ergebnis direkt senden', mbarMail: 'Senden' },
+  busy: { uebSend: 'Wird gesendet …', mbarMail: 'Sende …' },
+  sent: { uebSend: '✓ Übermittelt', mbarMail: '✓ Gesendet' }
+};
+let sendState = 'idle';
+function setSendState(state) {
+  sendState = state;
+  ['uebSend', 'mbarMail'].forEach(id => {
+    const b = document.getElementById(id);
+    b.textContent = sendLabels[state][id];
+    b.disabled = state === 'busy'; // kein Doppelklick während des Sendens
+  });
+}
 async function sendDirect() {
   const p = uebPayload(); if (!p) return;
+  setSendState('busy');
   setExportMsg('Ergebnis wird übermittelt …');
   try {
     const r = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.error || r.status);
+    setSendState('sent');
     setExportMsg(`Ergebnis von Gruppe ${p.gruppe} übermittelt – vielen Dank!`, 'sent');
   } catch (e) {
+    setSendState('idle');
     setExportMsg('Übermitteln nicht möglich – bitte „Ergebnis per Mail senden“ oder „Ergebnis speichern“ nutzen.', true);
   }
 }
+// Wird nach dem Senden etwas geändert, ist das Ergebnis nicht mehr das übermittelte: Schaltfläche zurücksetzen
+document.addEventListener('input', () => { if (sendState === 'sent') setSendState('idle'); });
 document.getElementById('uebMail').onclick = sendMail;
 document.getElementById('uebSend').onclick = sendDirect;
 // Direktversand nur über die Webseite: aus einer heruntergeladenen Datei (file:) blockiert der Browser die Anfrage
