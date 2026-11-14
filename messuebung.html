@@ -59,7 +59,9 @@
            font-weight:600; font-size:.9rem; border:1px solid currentColor; }
   .ok { color:var(--ok); } .warn { color:var(--warn); } .bad { color:var(--bad); }
   /* Bestätigung nach erfolgreichem Senden: groß und rot, damit sie nicht übersehen wird */
-  p.sent-msg { font-size:1.5rem; font-weight:700; line-height:1.3; color:var(--bad); margin:12px 0; }
+  p.sent-msg, p.err-msg { font-weight:700; line-height:1.3; color:var(--bad); margin:12px 0; }
+  p.sent-msg { font-size:1.5rem; }
+  p.err-msg { font-size:1.2rem; }
   ul.notes { margin:8px 0 0; padding-left:18px; font-size:.9rem; text-align:left; }
   .small { font-size:.8rem; color:var(--muted); }
   .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:.8rem; color:var(--muted); margin:10px 0 0; }
@@ -345,8 +347,8 @@ function calcUebung() {
 function setExportMsg(t, kind) {
   const m = document.getElementById('uebExportMsg');
   m.textContent = t;
-  m.className = kind === 'sent' ? 'sent-msg' : kind ? 'small bad' : 'small ok';
-  if (kind === 'sent') m.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); // auch auf dem Handy sichtbar
+  m.className = kind === 'sent' ? 'sent-msg' : kind ? 'err-msg' : 'small ok';
+  if (kind) m.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); // auch auf dem Handy sichtbar
 }
 function uebPayload() {
   const gEl = document.getElementById('uebGruppe');
