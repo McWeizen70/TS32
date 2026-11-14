@@ -58,6 +58,8 @@
   .badge { display:inline-block; margin-top:8px; padding:4px 12px; border-radius:99px;
            font-weight:600; font-size:.9rem; border:1px solid currentColor; }
   .ok { color:var(--ok); } .warn { color:var(--warn); } .bad { color:var(--bad); }
+  /* Bestätigung nach erfolgreichem Senden: groß und rot, damit sie nicht übersehen wird */
+  p.sent-msg { font-size:1.5rem; font-weight:700; line-height:1.3; color:var(--bad); margin:12px 0; }
   ul.notes { margin:8px 0 0; padding-left:18px; font-size:.9rem; text-align:left; }
   .small { font-size:.8rem; color:var(--muted); }
   .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:.8rem; color:var(--muted); margin:10px 0 0; }
@@ -340,7 +342,12 @@ function calcUebung() {
 }
 
 // ---------- Ergebnis abgeben (Datei oder Mail) – ohne personenbezogene Daten ----------
-function setExportMsg(t, bad) { const m = document.getElementById('uebExportMsg'); m.textContent = t; m.className = bad ? 'small bad' : 'small ok'; }
+function setExportMsg(t, kind) {
+  const m = document.getElementById('uebExportMsg');
+  m.textContent = t;
+  m.className = kind === 'sent' ? 'sent-msg' : kind ? 'small bad' : 'small ok';
+  if (kind === 'sent') m.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); // auch auf dem Handy sichtbar
+}
 function uebPayload() {
   const gEl = document.getElementById('uebGruppe');
   const g = num(gEl);
@@ -392,7 +399,7 @@ async function sendDirect() {
     const r = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok) throw new Error(j.error || r.status);
-    setExportMsg(`Ergebnis von Gruppe ${p.gruppe} übermittelt – vielen Dank!`);
+    setExportMsg(`Ergebnis von Gruppe ${p.gruppe} übermittelt – vielen Dank!`, 'sent');
   } catch (e) {
     setExportMsg('Übermitteln nicht möglich – bitte „Ergebnis per Mail senden“ oder „Ergebnis speichern“ nutzen.', true);
   }
