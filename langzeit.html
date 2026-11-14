@@ -127,7 +127,7 @@ const TS32 = (() => {
       taetigkeiten.push({
         name: t.name.slice(0, 80),
         stichproben: Array.isArray(t.stichproben) ? t.stichproben.map(toNum).filter(v => v !== null) : [],
-        laeq: toNum(t.laeq), h: Math.max(0, toNum(t.h) || 0), min: Math.max(0, toNum(t.min) || 0)
+        laeq: toNum(t.laeq), lcpeak: toNum(t.lcpeak), h: Math.max(0, toNum(t.h) || 0), min: Math.max(0, toNum(t.min) || 0)
       });
     }
     return { format: 'ts32-laerm', gruppe, modus: o.modus === 'gruppe' ? 'gruppe' : 'einzelperson', taetigkeiten, lex: toNum(o.lex) };
@@ -172,20 +172,21 @@ const TS32 = (() => {
   }
   const tickStep = span => (span <= 10 ? 1 : span <= 24 ? 2 : 5);
   const svgOpen = (w, h, label) => `<svg xmlns="${NS}" class="ts32-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)}" preserveAspectRatio="xMidYMid meet">`;
-  function thresholdsIn(dom) {
-    return [{ v: LOW, cls: 'thr-warn', label: 'unterer Auslösewert 80', anchor: 'end', dx: -8 },
-            { v: HIGH, cls: 'thr-crit', label: '85 oberer Auslösewert', anchor: 'start', dx: 8 }]
-      .filter(t => t.v >= dom[0] && t.v <= dom[1]);
-  }
+  const THRESHOLDS = [{ v: LOW, cls: 'thr-warn', label: 'unterer Auslösewert 80', anchor: 'end', dx: -8 },
+                      { v: HIGH, cls: 'thr-crit', label: '85 oberer Auslösewert', anchor: 'start', dx: 8 }];
+  const thresholdsIn = (dom, list = THRESHOLDS) => list.filter(t => t.v >= dom[0] && t.v <= dom[1]);
 
   // Punktdiagramm: eine Zeile je Gruppe; gefüllter Punkt = L_Aeq bzw. L_EX,8h, offene Kreise = Stichproben,
   // Band = Spannweite zwischen den Gruppen, gestrichelte Linie = energetischer Mittelwert.
-  function dotChart({ rows, title, withThresholds = false }) {
-    const W = 960, L = 170, R = 110, T = 92, B = 64, RH = 58;
+  // unit: Einheit der Werte; thresholds: eigene Grenzwertlinien statt 80/85 dB(A); summary=false blendet Band und Mittelwert aus.
+  function dotChart({ rows, title, withThresholds = false, unit = 'dB(A)', thresholds = null, summary = true }) {
+    const W = 960, R = 110, T = 92, B = 64, RH = 58;
+    const L = Math.max(170, 24 + 13 * Math.max(0, ...rows.map(r => String(r.label).length))); // Platz für lange Zeilenbeschriftungen
     const n = Math.max(rows.length, 1), H = T + n * RH + B;
     const vals = rows.map(r => r.value).filter(isFinite);
     const samples = rows.flatMap(r => r.samples || []);
-    const dom = niceDomain(vals.concat(samples), withThresholds ? [LOW, HIGH] : []);
+    const thr = thresholds || THRESHOLDS;
+    const dom = niceDomain(vals.concat(samples), withThresholds ? thr.map(t => t.v) : []);
     const x = v => L + (v - dom[0]) / (dom[1] - dom[0]) * (W - L - R);
     const y = i => T + i * RH + RH / 2;
     const st = stats(vals);
@@ -196,18 +197,18 @@ const TS32 = (() => {
       s += `<line class="grid" x1="${x(t)}" x2="${x(t)}" y1="${T - 8}" y2="${H - B + 6}"/>`;
       s += `<text class="tick" x="${x(t)}" y="${H - B + 32}" text-anchor="middle">${t}</text>`;
     }
-    s += `<text class="axis" x="${W - R}" y="${H - 8}" text-anchor="end">dB(A)</text>`;
+    s += `<text class="axis" x="${W - R}" y="${H - 8}" text-anchor="end">${esc(unit)}</text>`;
     // Spannweite zwischen den Gruppen
-    if (st && st.n > 1) {
+    if (summary && st && st.n > 1) {
       s += `<rect class="band" x="${x(st.mn)}" y="${T - 8}" width="${Math.max(2, x(st.mx) - x(st.mn))}" height="${n * RH + 16}" rx="4"><title>Spannweite ${f1(st.range)} dB</title></rect>`;
     }
     // Grenzwertlinien
-    if (withThresholds) for (const t of thresholdsIn(dom)) {
+    if (withThresholds) for (const t of thresholdsIn(dom, thr)) {
       s += `<line class="${t.cls}" x1="${x(t.v)}" x2="${x(t.v)}" y1="${T - 30}" y2="${H - B + 6}"/>`;
       s += `<text class="thr-label" x="${x(t.v) + t.dx}" y="${T - 34}" text-anchor="${t.anchor}">${t.label}</text>`;
     }
     // Mittelwert
-    if (st) {
+    if (summary && st) {
       s += `<line class="mean" x1="${x(st.mean)}" x2="${x(st.mean)}" y1="${T - 8}" y2="${H - B + 6}"/>`;
       s += `<text class="mean-label" x="${x(st.mean)}" y="${T - (withThresholds ? 62 : 22)}" text-anchor="middle">Ø ${f1(st.mean)}</text>`;
     }
@@ -216,10 +217,10 @@ const TS32 = (() => {
       s += `<text class="row-label" x="${L - 16}" y="${y(i) + 7}" text-anchor="end">${esc(r.label)}</text>`;
       s += `<line class="row-line" x1="${L}" x2="${W - R}" y1="${y(i)}" y2="${y(i)}"/>`;
       for (const v of r.samples || []) {
-        s += `<circle class="sample" cx="${x(v)}" cy="${y(i)}" r="7"><title>${esc(r.label)}: Stichprobe ${f1(v)} dB(A)</title></circle>`;
+        s += `<circle class="sample" cx="${x(v)}" cy="${y(i)}" r="7"><title>${esc(r.label)}: Stichprobe ${f1(v)} ${esc(unit)}</title></circle>`;
       }
       if (isFinite(r.value)) {
-        const tip = `${esc(r.label)}: ${f1(r.value)} dB(A)` + ((r.samples || []).length ? ` · Stichproben ${r.samples.map(f1).join(' · ')}` : '');
+        const tip = `${esc(r.label)}: ${f1(r.value)} ${esc(unit)}` + ((r.samples || []).length ? ` · Stichproben ${r.samples.map(f1).join(' · ')}` : '');
         s += `<circle class="dot" cx="${x(r.value)}" cy="${y(i)}" r="12"><title>${tip}</title></circle>`;
         s += `<text class="val" x="${W - R + 16}" y="${y(i) + 7}">${f1(r.value)}</text>`;
       } else {
@@ -320,7 +321,7 @@ const TS32 = (() => {
   function injectCSS() { if (cssDone) return; const st = document.createElement('style'); st.textContent = CHART_CSS; document.head.appendChild(st); cssDone = true; }
 
   // „LEX,8h“ / „LAeq“ mit tiefgestellten Indizes ausgeben (Text wird vorher maskiert)
-  const subHTML = t => esc(t).replace('LEX,8h', 'L<sub>EX,8h</sub>').replace('LAeq', 'L<sub>Aeq</sub>');
+  const subHTML = t => esc(t).replace('LEX,8h', 'L<sub>EX,8h</sub>').replace('LAeq', 'L<sub>Aeq</sub>').replace('LC,peak', 'L<sub>C,peak</sub>');
 
   // slides: [{ title, sub, svg, legend }]
   function present(slides, start = 0) {

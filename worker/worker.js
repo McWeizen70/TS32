@@ -103,7 +103,7 @@ async function listDay(url, env) {
 function clean(p) {
   const isNum = (x, lo, hi) => typeof x === 'number' && isFinite(x) && x >= lo && x <= hi;
   const numOrNull = (x, lo, hi) => (x === null ? null : isNum(x, lo, hi) ? x : undefined);
-  if (!p || p.format !== 'ts32-laerm' || p.version !== 2) return null;
+  if (!p || p.format !== 'ts32-laerm' || (p.version !== 2 && p.version !== 3)) return null; // 3: mit lcpeak je Tätigkeit
   if (!Number.isInteger(p.gruppe) || p.gruppe < 1 || p.gruppe > 99) return null;
   if (p.modus !== 'gruppe' && p.modus !== 'einzelperson') return null;
   if (!Array.isArray(p.taetigkeiten) || p.taetigkeiten.length < 1 || p.taetigkeiten.length > 10) return null;
@@ -114,9 +114,11 @@ function clean(p) {
     const laeq = numOrNull(t.laeq, 0, 160);
     if (laeq === undefined) return null;
     if (!Number.isInteger(t.h) || t.h < 0 || t.h > 24 || !Number.isInteger(t.min) || t.min < 0 || t.min > 59) return null;
-    taetigkeiten.push({ name: t.name, stichproben: t.stichproben, laeq, h: t.h, min: t.min });
+    const lcpeak = t.lcpeak == null ? null : isNum(t.lcpeak, 0, 200) ? t.lcpeak : undefined; // Version 2 ohne lcpeak
+    if (lcpeak === undefined) return null;
+    taetigkeiten.push({ name: t.name, stichproben: t.stichproben, laeq, lcpeak, h: t.h, min: t.min });
   }
   const lex = numOrNull(p.lex, 0, 160);
   if (lex === undefined) return null;
-  return { format: 'ts32-laerm', version: 2, gruppe: p.gruppe, modus: p.modus, taetigkeiten, lex };
+  return { format: 'ts32-laerm', version: p.version, gruppe: p.gruppe, modus: p.modus, taetigkeiten, lex };
 }
